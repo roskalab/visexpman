@@ -764,8 +764,9 @@ def mouse_head_direction(image, threshold=80,  roi_size=20, saturation_threshold
     roi[:,:,1]*=numpy.where(roi[:,:,2]>value_threshold,1,0)#Set saturation to 0 where value is low -> exclude these pixels from color detection
     animal_position=numpy.zeros(2)
     led_ct=0
+    color_tolerance=0.15
     try:
-        green=numpy.array([int(c.mean()) for c in numpy.where(numpy.logical_and(abs(roi[:, :, 0]-0.333)<0.05, roi[:, :, 1]>saturation_threshold))])
+        green=numpy.array([int(c.mean()) for c in numpy.where(numpy.logical_and(abs(roi[:, :, 0]-0.333)<color_tolerance, roi[:, :, 1]>saturation_threshold))])
         green+=coo-roi_size
         animal_position+=green
         led_ct+=1
@@ -783,9 +784,9 @@ def mouse_head_direction(image, threshold=80,  roi_size=20, saturation_threshold
         result=False
     try:
         if not dim_red:
-            red=numpy.array([int(c.mean()) for c in numpy.where(numpy.logical_and(numpy.logical_or(roi[:, :, 0]<0.05,  roi[:, :, 0]>0.95), roi[:, :, 1]>saturation_threshold))])
+            red=numpy.array([int(c.mean()) for c in numpy.where(numpy.logical_and(numpy.logical_or(roi[:, :, 0]<color_tolerance,  roi[:, :, 0]>1-color_tolerance), roi[:, :, 1]>saturation_threshold))])
         else:#Allow dim red
-            red=numpy.array([int(c.mean()) for c in numpy.where(numpy.logical_and(numpy.logical_or(roi[:, :, 0]<0.05,  roi[:, :, 0]>0.95), roi[:, :, 2]>0.1))])#Detect dim red light
+            red=numpy.array([int(c.mean()) for c in numpy.where(numpy.logical_and(numpy.logical_or(roi[:, :, 0]<color_tolerance,  roi[:, :, 0]>1-color_tolerance), roi[:, :, 2]>0.1))])#Detect dim red light
         red+=coo-roi_size
         animal_position+=red
         led_ct+=1

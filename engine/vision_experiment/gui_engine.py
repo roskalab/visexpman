@@ -202,10 +202,11 @@ class ExperimentHandler(object):
         filename=os.sep.join(cf.split(os.sep)[:-1])
         stimulus_source_code = fileop.read_text_file(filename)
         #Find out duration
-        if self.guidata.read('Stimulus Device')=='Electric stimulus' or self.guidata.read('Stimulus Device')=='Uniblitz':
+        if self.guidata.read('Enable'):
             experiment_duration =10#Dummy value bugfix
         else:
             experiment_duration = experiment.get_experiment_duration(classname, self.machine_config, source = stimulus_source_code)
+        self.stimulus_config=experiment.read_stimulus_parameters(classname, filename, self.machine_config)
         if self.santiago_setup and experiment_duration>240:
             if not self.ask4confirmation('Longer recordings than 240 s may result memory error. Do you want to continue? {0}'.format(experiment_duration)):
                 return
@@ -222,10 +223,10 @@ class ExperimentHandler(object):
         source_code_type='stimulus_source_code' if len(experiment.parse_stimulation_file(filename)[classname])==0 else 'experiment_config_source_code'
         experiment_parameters[source_code_type]=stimulus_source_code
         experiment_parameters['stimclass']=classname
-        if self.guidata.read('Stimulus Device')=='Electric stimulus':
+        if 'ELPHYS_STIMULUS' in self.stimulus_config and self.stimulus_config['ELPHYS_STIMULUS']:
+            experiment_duration = experiment.get_experiment_duration(classname, self.machine_config, source = stimulus_source_code)
+        elif self.guidata.read('Enable'):
             experiment_parameters['stimclass']=self.guidata.read('Protocol')[:-4]
-        if self.guidata.read('Stimulus Device')=='Uniblitz':
-            experiment_parameters['stimclass']='Uniblitz'
         experiment_parameters['duration']=experiment_duration
         experiment_parameters['status']='waiting'
         experiment_parameters['id']=experiment_data.get_id()
@@ -251,7 +252,9 @@ class ExperimentHandler(object):
             oh=wt+self.machine_config.MES_RECORD_OVERHEAD
             experiment_parameters['mes_record_time']=int(1000*(experiment_parameters['duration']+oh))
         elif self.machine_config.PLATFORM=='elphys':
-            if self.guidata.read('Stimulus Device')=='Electric stimulus':
+            if self.guidata.read('Enable Psychotoolbox') and self.guidata.read('Enable'):
+                raise NotImplementedError('Psychotoolbox stimulation and elphys waveform generation is not possible at the same time')
+            if self.guidata.read('Enable'):
                 mode=self.guidata.read('Clamp Mode')
                 #Generate waveform
                 fsample=self.guidata.read('Sample Rate') #self.machine_config.SYNC_RECORDER_SAMPLE_RATE
@@ -267,7 +270,8 @@ class ExperimentHandler(object):
                         epochs.append(numpy.zeros(offsamples))
                         epochs.append(numpy.zeros(int(fsample*self.guidata.read('Wait time')*1e-3)))
                     experiment_parameters['elphys_amplitudes_volt']=amplitudes
-                else:
+                    experiment_parameters['elphys_waveform']=numpy.concatenate(epochs)
+                elif 'ELPHYS_STIMULUS' not in self.stimulus_config or not self.stimulus_config['ELPHYS_STIMULUS']:
                     import scipy.io
                     pfn=os.path.join(self.machine_config.PROTOCOL_PATH, self.guidata.read('Protocol'))
                     wf_file_content=scipy.io.loadmat(pfn)
@@ -278,16 +282,9 @@ class ExperimentHandler(object):
                     for i in range(pulses.shape[0]):
                         epochs.append(pulses[i]/scale*1e3)
                         epochs.append(numpy.zeros(int(fsample*self.guidata.read('Wait time')*1e-3)))
-                experiment_parameters['elphys_waveform']=numpy.concatenate(epochs)
-            elif self.guidata.read('Stimulus Device')=='Uniblitz':
-                #generate waveform
-                fsample=self.machine_config.SYNC_RECORDER_SAMPLE_RATE
-                nonsamples=int(fsample*self.guidata.read('Flash time'))
-                noffsamples=int(fsample*self.guidata.read('Flash period'))-nonsamples
-                experiment_parameters['uniblitz_waveform']= numpy.concatenate((numpy.zeros((nonsamples)), numpy.ones((noffsamples))))
-                experiment_parameters['uniblitz_waveform']=numpy.tile(experiment_parameters['uniblitz_waveform'], self.guidata.read('N pulses'))
-                experiment_parameters['uniblitz_waveform']=numpy.concatenate((numpy.zeros(noffsamples), experiment_parameters['uniblitz_waveform']))
-                experiment_parameters['uniblitz_waveform']*=self.machine_config.UNIBLITZ_VOLTAGE
+                    experiment_parameters['elphys_waveform']=numpy.concatenate(epochs)
+                    
+            
 #            sensitivity=self.guidata.read(mode.split()[0]+' Command Sensitivity')
 #            command=self.guidata.read('Clamp '+mode.split()[0])
 #            experiment_parameters['Command Voltage']=command/sensitivity
@@ -522,7 +519,7 @@ class ExperimentHandler(object):
             nchannels=nchannels[1]-nchannels[0]+1
             self.daqdatafile=fileop.DataAcquisitionFile(nchannels,'sync',None)
             #Start sync signal recording
-            self.sample_rate=self.guidata.read('Sample Rate') if self.guidata.read('Stimulus Device')=='Electric stimulus' else self.machine_config.SYNC_RECORDER_SAMPLE_RATE
+            self.sample_rate=self.guidata.read('Sample Rate') if self.guidata.read('Enable') else self.machine_config.SYNC_RECORDER_SAMPLE_RATE
             d=self.sync_recorder.read_ai()#Empty ai buffer
             self.sync_recorder.start_daq(ai_sample_rate = self.sample_rate,
                                 ai_record_time=self.machine_config.SYNC_RECORDING_BUFFER_TIME, timeout = 10) 
@@ -555,7 +552,7 @@ class ExperimentHandler(object):
             if 'Record Eyecamera' in experiment_parameters and experiment_parameters['Record Eyecamera']:
                 self.send({'function': 'start_recording','args':[experiment_parameters]},'cam')
                 time.sleep(self.machine_config.CAMERA_PRETRIGGER_TIME)
-            if self.guidata.read('Stimulus Device')=='Psychotoolbox':
+            if self.guidata.read('Enable Psychotoolbox'):
                 self.printc('Trigger PTB, if fails, restart GUI!')
                 self.zmq_resp=utils.send_zmq(self.machine_config.CONNECTIONS['stim']['ip']['stim'],self.machine_config.PTB_ZMQ_PORT,'start',wait=1)
                 self.printc(self.zmq_resp)
@@ -563,7 +560,7 @@ class ExperimentHandler(object):
                     self._stop_sync_recorder()
                     return
                 
-            elif self.machine_config.PLATFORM not in ['erg'] and self.guidata.read('Stimulus Device') =='visexpman stim':
+            elif self.machine_config.PLATFORM not in ['erg'] and 'elphys_waveform' not in experiment_parameters and 'ELPHYS_STIMULUS' not in self.stimulus_config:
                 self.send({'function': 'start_stimulus','args':[experiment_parameters]},'stim')
         if 'elphys_waveform' in experiment_parameters:
             self.printc('Start elphys pulses')
@@ -572,11 +569,12 @@ class ExperimentHandler(object):
             experiment_parameters['duration']=self.ao_duration
             experiment_parameters['stimclass']='Electrical pulses'
             self.ao_termination_time=time.time()+self.ao_duration+5
-        if 'uniblitz_waveform' in experiment_parameters:
-            self.printc('Start uniblitz pulses')
-            self.ao, d=daq.set_waveform_start(self.machine_config.UNIBLITZ_COMMAND_CHANNEL,experiment_parameters['uniblitz_waveform'][None],self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
-            self.ao_duration=experiment_parameters['uniblitz_waveform'].shape[0]/self.machine_config.SYNC_RECORDER_SAMPLE_RATE
+        elif 'ELPHYS_STIMULUS' in self.stimulus_config and self.stimulus_config['ELPHYS_STIMULUS']:
+            self.printc('Start LED stimulus')
+            self.ao, d=daq.set_waveform_start(self.machine_config.LED_COMMAND_CHANNEL,self.stimulus_config['WAVEFORM'],self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
+            self.ao_duration=self.stimulus_config['WAVEFORM'].shape[1]/self.machine_config.SYNC_RECORDER_SAMPLE_RATE
             experiment_parameters['duration']=self.ao_duration
+            experiment_parameters['led waveform']=self.stimulus_config['WAVEFORM']
             self.ao_termination_time=time.time()+self.ao_duration+5
         if hasattr(self, 'copier'):
             self.copier.suspend()
@@ -606,51 +604,51 @@ class ExperimentHandler(object):
             mcd_finished=self.current_experiment_parameters.get('stop_trigger',False) or ('stop_trigger' not in self.current_experiment_parameters)
             self.printc(mcd_finished)
             if not self.aborted and 'mcd_file' in self.current_experiment_parameters and mcd_finished:
-                dst=fileop.replace_extension(self.current_experiment_parameters['outfilename'], self.machine_config.FILE_TRIGGER_EXTENSION)
-                tag=os.path.splitext(os.path.basename(self.current_experiment_parameters['mcd_file']))[0]
-                dst=os.path.join(os.path.dirname(dst),os.path.basename(dst).replace('data',tag))
-                self.printc('Move {0} to {1}'.format(self.current_experiment_parameters['mcd_file'],dst))
-                try:
-                    time.sleep(10)
-                    shutil.copy(self.current_experiment_parameters['mcd_file'], dst)
-                except:
-                    if self.ask4confirmation('Stop MC recording manually. Press no for skipping renaming mcd file'):
-                        time.sleep(2)
-                        try:
-                            shutil.copy(self.current_experiment_parameters['mcd_file'], dst)
-                        except:
-                            time.sleep(10)
-                            shutil.copy(self.current_experiment_parameters['mcd_file'], dst)
-                    else:
-                        self.printc('MC file not renamed')
-                self.printc('MEA recording almost finished, please wait...')
-                time.sleep(self.machine_config.FILE_CHECK_INTERVAL/2+1)
-                import filecmp
-                if filecmp.cmp(self.current_experiment_parameters['mcd_file'],dst):
-                    src=self.current_experiment_parameters['mcd_file']
-                    self.printc(f'Delete {src}')
-                    os.remove(src)
-                
-            
-#            if hasattr(self.machine_config, 'MC_DATA_FOLDER'):
-#                #Find latest mcd file and save experiment metadata to the same folder
-#                self.latest_mcd_file=fileop.find_latest(self.machine_config.MC_DATA_FOLDER,'.mcd')
-#                txt='Experiment name\t{0}\rBandpass filter\t{1}\rND filter\t{2}\rComments\t{3}\r'\
-#                        .format(\
-#                        self.guidata.read('name'),
-#                        self.guidata.read('Bandpass filter'),
-#                        self.guidata.read('ND filter'),
-#                        self.guidata.read('Comment'))
-#                for k,v in self.current_experiment_parameters.items():
-#                    if k !='stimulus_source_code' or k!='status':
-#                        txt+='{0}\t{1}\r'.format(k,v)
-#                txt+=self.current_experiment_parameters['stimulus_source_code']
-#                outfile=self.latest_mcd_file.replace('.mcd','_metadata.txt')
-#                if os.path.exists(outfile):
-#                    if not self.ask4confirmation('Experiment info file already exists.\r\nDo you want to overwrite {0}'.format(outfile)):
-#                        return
-#                fileop.write_text_file(outfile,txt)
-#                self.printc('Experiment info saved to {0}'.format(outfile))
+                if self.machine_config.FILE_TRIGGER_EXTENSION=='.mcd':
+                    dst=fileop.replace_extension(self.current_experiment_parameters['outfilename'], self.machine_config.FILE_TRIGGER_EXTENSION)
+                    tag=os.path.splitext(os.path.basename(self.current_experiment_parameters['mcd_file']))[0]
+                    dst=os.path.join(os.path.dirname(dst),os.path.basename(dst).replace('data',tag))
+                    self.printc('Move {0} to {1}'.format(self.current_experiment_parameters['mcd_file'],dst))
+                    try:
+                        time.sleep(10)
+                        shutil.copy(self.current_experiment_parameters['mcd_file'], dst)
+                    except:
+                        if self.ask4confirmation('Stop MC recording manually. Press no for skipping renaming mcd file'):
+                            time.sleep(2)
+                            try:
+                                shutil.copy(self.current_experiment_parameters['mcd_file'], dst)
+                            except:
+                                time.sleep(10)
+                                shutil.copy(self.current_experiment_parameters['mcd_file'], dst)
+                        else:
+                            self.printc('MC file not renamed')
+                    self.printc('MEA recording almost finished, please wait...')
+                    time.sleep(self.machine_config.FILE_CHECK_INTERVAL/2+1)
+                    import filecmp
+                    if filecmp.cmp(self.current_experiment_parameters['mcd_file'],dst):
+                        src=self.current_experiment_parameters['mcd_file']
+                        self.printc(f'Delete {src}')
+                        os.remove(src)
+                elif self.machine_config.FILE_TRIGGER_EXTENSION=='.msrd':
+                    files=[f for f in fileop.listdir(os.path.dirname(self.current_experiment_parameters['mcd_file'])) if os.path.splitext(self.current_experiment_parameters['mcd_file'])[0] in f]
+                    dstfiles=[os.path.splitext(self.current_experiment_parameters['outfilename'])[0]+os.path.splitext(f)[1] for f in files]
+                    try:
+                        time.sleep(10)
+                        for i in range(len(files)):
+                            shutil.copy(files[i], dstfiles[i])
+                    except:
+                        if self.ask4confirmation('Stop MC recording manually. Press no for skipping renaming mcd file'):
+                            time.sleep(2)
+                            try:
+                                for i in range(len(files)):
+                                    shutil.copy(files[i], dstfiles[i])
+                            except:
+                                time.sleep(10)
+                                for i in range(len(files)):
+                                    shutil.copy(files[i], dstfiles[i])
+                        else:
+                            self.printc('MC file not renamed')
+        
         else:
             if self.santiago_setup:
                 t0=time.time()
@@ -672,7 +670,7 @@ class ExperimentHandler(object):
         if self.machine_config.PLATFORM in ['elphys']:
             if hasattr(self, 'sync_recorder'):
                 self._stop_sync_recorder()
-            if self.guidata.read('Stimulus Device') in ['Psychotoolbox','Electric stimulus', 'Uniblitz']:
+            if self.guidata.read('Enable Psychotoolbox') or hasattr(self,  'ao'):
                 if hasattr(self,  'ao'):
                     daq.set_waveform_finish(self.ao, 3,wait=True)
                     self.printc('Waveform generator terminated')
@@ -703,6 +701,7 @@ class ExperimentHandler(object):
                     time.sleep(0.1)
                 #Here comes merging datafiles if stim computer is available
                 if self.guidata.read('Enable Psychotoolbox') or self.guidata.read('Enable'):
+                    fn=self.current_experiment_parameters['outfilename']
                     shutil.copy(self.daqdatafile.filename,fn)
                     self.printc('Sync data saved to {0}'.format(fn))
                     #Scale primary and command signals
@@ -714,8 +713,8 @@ class ExperimentHandler(object):
                     mode=self.guidata.read('Clamp Mode')
                     #Scale elphys
                     if 'Voltage' in mode:
-                        hh.unit='pA, command mV'
-                        scale=self.guidata.read('Current Gain')
+                        hh.unit='nA, command mV'
+                        scale=self.guidata.read('Current Gain')*1e-3
                         command_scale=self.guidata.read("Voltage Command Sensitivity")
                     elif 'Current' in mode:
                         hh.unit='mV, command: nA'
@@ -799,7 +798,7 @@ class ExperimentHandler(object):
             if self.santiago_setup:
                 #Export timing to csv file
                 self._timing2csv(filename)
-            if self.machine_config.PLATFORM=='elphys' and not aborted and self.guidata.read('Stimulus Device') =='visexpman stim':
+            if self.machine_config.PLATFORM=='elphys' and not aborted and not self.guidata.read('Enable') and not self.guidata.read('Enable Psychotoolbox') and 'ELPHYS_STIMULUS' not in self.stimulus_config:
                 hh=experiment_data.CaImagingData(outfile)
                 hh.load()
                 self.to_gui.put({'plot_title': os.path.dirname(outfile)+'<br>'+os.path.basename(outfile)})
@@ -809,7 +808,8 @@ class ExperimentHandler(object):
                     hh.sync2time()
                     hh.check_timing(check_frame_rate=True)
                 except:
-                    self.printc(traceback.format_exc())
+                    pass
+#                    self.printc(traceback.format_exc())
                 hh.close()
         self.to_gui.put({'update_status':'idle'})
         
@@ -945,7 +945,7 @@ class ExperimentHandler(object):
             if self.live_data.shape[0]>0:
                 self._plot_elphys(self.live_data)
             self.daqdatafile.add(self.syncreadout)
-            if self.guidata.read('Stimulus Device')=='Psychotoolbox':
+            if self.guidata.read('Enable Psychotoolbox'):
                 #Check  for stop condition
                 nsamples=self.machine_config.SYNC_RECORDER_SAMPLE_RATE*20#Check last 10 seconds
                 if self.live_data.shape[0]>nsamples:
@@ -1011,7 +1011,7 @@ class ExperimentHandler(object):
         if hasattr(self, 'sync_recorder'):
             self._stop_sync_recorder()
         if self.machine_config.PLATFORM=='elphys':
-            if 'stim' not in self.machine_config.CONNECTIONS or self.guidata.read('Stimulus Device')=='Electric stimulus':
+            if 'stim' not in self.machine_config.CONNECTIONS or self.guidata.read('Enable'):
                 self.finish_experiment()
             self.experiment_running=False
             self.save_experiment_files(self.aborted)
@@ -1735,21 +1735,26 @@ class Analysis(object):
         if self.experiment_running:
             self.printc('No backup during recording')
             return
-        self.printc('Backing up logfiles')
-        from visexpman.engine import backup_manager
-        logbuconf=backup_manager.Config()
-        logbuconf.last_file_access_timeout=1
-        logbuconf.COPY= [{'src':self.machine_config.LOG_PATH, 'dst':[os.path.join(self.machine_config.BACKUP_PATH, os.path.basename(self.machine_config.LOG_PATH))],'extensions':['.txt']},]
-        self.logfilebackup=backup_manager.BackupManager(logbuconf,simple=True)
-        self.logfilebackup.run()
-        self.printc('Backing up data files')
-        for folder in [self.machine_config.EXPERIMENT_DATA_PATH, os.path.join(os.path.dirname(self.machine_config.EXPERIMENT_DATA_PATH), 'raw')]:
-            databuconf=backup_manager.Config()
-            databuconf.last_file_access_timeout=1
-            databuconf.COPY= [{'src':folder, 'dst':[os.path.join(self.machine_config.BACKUP_PATH, os.path.basename(folder))],'extensions':['.hdf5','.mat', '.zip', '.csv', '.eps', '.tif','.png']},]
-            self.datafilebackup=backup_manager.BackupManager(databuconf,simple=True)
-            self.datafilebackup.run()
-        self.printc('Done')
+        if 0:#Old method to a smb file share
+            self.printc('Backing up logfiles')
+            from visexpman.engine import backup_manager
+            logbuconf=backup_manager.Config()
+            logbuconf.last_file_access_timeout=1
+            logbuconf.COPY= [{'src':self.machine_config.LOG_PATH, 'dst':[os.path.join(self.machine_config.BACKUP_PATH, os.path.basename(self.machine_config.LOG_PATH))],'extensions':['.txt']},]
+            self.logfilebackup=backup_manager.BackupManager(logbuconf,simple=True)
+            self.logfilebackup.run()
+            self.printc('Backing up data files')
+            for folder in [self.machine_config.EXPERIMENT_DATA_PATH, os.path.join(os.path.dirname(self.machine_config.EXPERIMENT_DATA_PATH), 'raw')]:
+                databuconf=backup_manager.Config()
+                databuconf.last_file_access_timeout=1
+                databuconf.COPY= [{'src':folder, 'dst':[os.path.join(self.machine_config.BACKUP_PATH, os.path.basename(folder))],'extensions':['.hdf5','.mat', '.zip', '.csv', '.eps', '.tif','.png']},]
+                self.datafilebackup=backup_manager.BackupManager(databuconf,simple=True)
+                self.datafilebackup.run()
+            self.printc('Done')
+        else:
+            if self.ask4confirmation('Backup may take couple minutes. Are you sure?'):
+                import subprocess
+                subprocess.call(self.machine_config.BACKUP_COMMAND,  shell=True)
         
     def run_always_analysis(self):
         t=datetime.datetime.fromtimestamp(self.last_run)
@@ -2435,8 +2440,8 @@ class ElphysEngine():
             mode=self.guidata.read('Clamp Mode')
             #Scale elphys
             if 'Voltage' in mode:
-                unit='pA, command mV'
-                scale=self.guidata.read('Current Gain')
+                unit='nA, command mV'
+                scale=self.guidata.read('Current Gain')*1e-3
                 command_scale=self.guidata.read("Voltage Command Sensitivity")
             elif 'Current' in mode:
                 unit='mV, command: nA'

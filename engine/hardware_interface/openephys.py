@@ -24,7 +24,7 @@ def start_recording(ip=None,  tag=""):
         return True
     except:
         import traceback
-        print(traceback.format_ext())
+        print(traceback.format_exc())
         return False
     
     
@@ -44,63 +44,29 @@ def stop_recording(ip=None):
         return True
     except:
         return False
-
-def check_data(in_folder):
-    in_folder=os.path.join(in_folder, 'experiment1', 'recording1')
+    
+def read_sync(in_folder):
+    #in_folder=os.path.join(in_folder, 'experiment1', 'recording1')
     json_file = open(os.path.join(in_folder, "structure.oebin"))
     json_data = json.load(json_file)
     json_file.close()
     sample_rate = json_data['continuous'][0]['sample_rate']
 
-    camera_sync_ch_index = -1
+    sync_ch_index = -1
     for ch in json_data['continuous'][0]['channels']:
-        if(ch['channel_name'] == 'ADC2'):
-            camera_sync_ch_index = ch['source_processor_index']
+        if(ch['channel_name'] == 'AP_SYNC'):
+            sync_ch_index = ch['source_processor_index']
             break
-    if(camera_sync_ch_index == -1):
-        print('Camera sync CH(ADC2) not found error!')
-        return -1
+    if(sync_ch_index == -1):
+        raise RuntimeError('sync CH not found error!')
         
     ch_count = len(json_data['continuous'][0]['channels'])
      
-    data_file_path = os.path.join(in_folder, "continuous","Rhythm_FPGA-100.0","continuous.dat") #fix folder structure?
+    data_file_path = os.path.join(in_folder, "continuous","Neuropix-PXI-100.0","continuous.dat") #fix folder structure?
     data = numpy.fromfile(data_file_path, dtype='<i2')
     deinterleaved_data = [data[idx::ch_count] for idx in range(ch_count)]
-    sync_data = deinterleaved_data[camera_sync_ch_index]
-    sync_data_raw=numpy.copy(sync_data)
-    #sync_data = sync_data[180000:]  #skip start transiens ??
-    
-    #calc pulse widths, r_edge
-    min_amplitude = 10000;
-#    pulse_widths=[]
-#    rising_edges=[]
-#    found=False;
-#    width_cnt=0;
-#    for i in range(len(sync_data)):
-#        if(sync_data[i] > min_amplitude):
-#            if(width_cnt == 0): #rising edge
-#                width_cnt = width_cnt +1
-#                rising_edges.append(i)
-#            else:
-#                width_cnt = width_cnt +1
-#        else:
-#            if(width_cnt > 0): #falling edge
-#                pulse_widths.append(width_cnt)
-#                width_cnt = 0
-#    rising_edges = numpy.array(rising_edges) 
-    rising_edges=signal.detect_edges(sync_data, min_amplitude)[::2]
-    periods = rising_edges[1:] - rising_edges[0:-1]  #samples
-    periods = periods * (1.0/sample_rate);  #sec 
-    period = periods.mean()
-    frequency = 1.0/period  #Hz
-    frequency_std = (1.0/periods).std();
-    
-    print("period(mean)",period*1000, "ms") 
-    print("Frequency(mean):",frequency,"Hz")
-    print("Frequency deviation:",frequency_std,"Hz")
-    #plt.plot(sync_data)
-    #plt.show()
-    return frequency, frequency_std, rising_edges, sync_data_raw
+    sync_data = deinterleaved_data[sync_ch_index]
+    return sync_data, sample_rate
     
 class Test(unittest.TestCase):
     @unittest.skip('')
@@ -114,7 +80,19 @@ class Test(unittest.TestCase):
     def test_check_data(self):
         in_folder=r'H:\rz_organoid\oe_data\experiment1\recording1'
         in_folder='/tmp/oe/experiment1/recording1'
-        check_data(in_folder)
+        in_folder=r'C:\data\2021-09-08_12-08-49_sep8_DG_20deg_20degsec_AP3900_ML1300_DV3900_202109081208476\Record Node 103\experiment1\recording1'
+        sync, fs=read_sync(in_folder)
+        import scipy.io
+        sync2=scipy.io.loadmat(r'C:\data\lefteye_202109081208476_sep8_DG_20deg_20degsec_AP3900_ML1300_DV3900.mat')['sync'][:, 1]
+        fs2=scipy.io.loadmat(r'C:\data\lefteye_202109081208476_sep8_DG_20deg_20degsec_AP3900_ML1300_DV3900.mat')['machine_config']['SYNC_RECORDER_SAMPLE_RATE'][0][0][0][0]
+        from pylab import subplot, plot, show, title, legend
+        t2=numpy.arange(sync2.shape[0])/fs2
+        t=numpy.arange(sync.shape[0])/fs
+        plot(t2, sync2)
+        plot(t, sync)
+        legend(['sync pulse recorded by NI board',  'sync pulse recorded by NP (low pass filtered)'])
+        show()
+        pass
 
         
 

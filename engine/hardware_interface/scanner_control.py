@@ -14,6 +14,9 @@ try:
     import PyDAQmx.DAQmxTypes as DAQmxTypes
 except:
     print('no pydaqmx')
+    
+NFRAMES_SKIP_AT_SCANNING_START=4
+
 class ScannerWaveform(object):
     '''
     '''
@@ -25,6 +28,8 @@ class ScannerWaveform(object):
     MIN_X_SCANNER_PERIOD=1./8000#TODO: this limitation should depend on scan area width. Lower widths work on higher frequencies
     SCANNER_VOLTAGE_RANGE=[0.05, 7.0]
     LINE_SCAN_EXTENSION=0.2
+    SCANNER_VOLTAGE_DEG_SCALE=0.75#V/deg
+    SCANNER_POSITION_VOLTAGE_DEG_SCALE=0.5#V/deg
     
     def __init__(self, machine_config=None,  **kwargs):
         if hasattr(machine_config, 'AO_SAMPLE_RATE'):
@@ -103,7 +108,47 @@ class ScannerWaveform(object):
             raise ValueError('Too many pixels to scan: {0}, limit {1}'.format(scan_mask.sum(),  self.MAX_FRAME_PIXELS))
         frame_timing[-1]=0
         projector_control[-1]=0
+        #Generate position-pixel map, assuming that scan is zero centered
+        self.x_scanner_position_start=-0.5*width
+        self.x_scanner_position_end=0.5*width
+        self.y_scanner_position_start=-0.5*height
+        self.y_scanner_position_end=0.5*height
+        nxsamples=int(width*resolution)
+        nysamples=int(height*resolution)
+        #Scale position to voltage: after voltage conversion it is scaled to the feedback position's scale
+        scale=self.scan_voltage_um_factor*self.SCANNER_POSITION_VOLTAGE_DEG_SCALE/self.SCANNER_VOLTAGE_DEG_SCALE
+        self.x_scanner_position_start*=scale
+        self.x_scanner_position_end*=scale
+        self.y_scanner_position_start*=scale
+        self.y_scanner_position_end*=scale
+        import scipy.interpolate
+        self.xinterp=scipy.interpolate.interp1d([self.x_scanner_position_start, self.x_scanner_position_end], [0, nxsamples-1], bounds_error=False, fill_value='extrapolate')
+        self.yinterp=scipy.interpolate.interp1d([self.y_scanner_position_start, self.y_scanner_position_end], [0, nysamples-1], bounds_error=False, fill_value='extrapolate')
         return waveform_x,  waveform_y, projector_control, frame_timing, boundaries
+        
+    def generate_smooth(self, height, width, resolution, xflyback, yflyback):
+        def smooth(x,h):
+            return x - ( smooth_core(x,h)/2+     numpy.floor(x+0.5)-0.5 )
+
+        def smooth_core(x,h):
+            return numpy.tanh((   (x+0.5)-numpy.floor(x+0.5)-0.5)*h   )
+        nxscans=utils.roundint(height * resolution)+int(yflyback)
+        samples_per_xscan=int(utils.roundint(width * resolution)*((100+xflyback)*1e-2+self.LINE_SCAN_EXTENSION))
+        x=numpy.linspace(0,nxscans,nxscans*samples_per_xscan)
+        h=20
+        wf=(smooth(x,h)-0.5)*self.scan_voltage_um_factor*width
+        first_zero_crossing=numpy.nonzero(numpy.diff(numpy.sign(wf)))[0][1]
+        offset=int(first_zero_crossing-0.5*utils.roundint(width * resolution))
+        scan_mask=numpy.zeros(samples_per_xscan)
+        scan_mask[offset:offset+utils.roundint(width * resolution)]=1
+        scan_mask=numpy.tile(scan_mask,nxscans )
+        scan_mask[-2*samples_per_xscan:]=0
+        boundaries = numpy.nonzero(numpy.diff(scan_mask))[0]+1
+#        from pylab import plot, show
+#        plot(wf);plot(scan_mask);show()
+#        pdb.set_trace()
+        
+        return wf, boundaries
         
 def binning_data(data, factor):
     '''
@@ -141,11 +186,11 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
     def start(self):
         instrument.InstrumentProcess.start(self)
         
-    def start_(self, waveform, filename, data_format,offset=0):
+    def start_(self, waveform, filename, data_format,offset=0, nframes=None):
         """
         data_format: dictionary containing channels to be saved and boundaries
         """
-        self.queues['command'].put(('start', waveform, filename, data_format, offset))
+        self.queues['command'].put(('start', waveform, filename, data_format, offset, nframes))
         
     def stop(self):
         self.queues['command'].put(('stop',))
@@ -182,7 +227,7 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
     
     def data2file(self,readout):
         #Scale readout
-        clipped=numpy.clip(readout,self.data_range_min,self.data_range_max)
+        clipped=numpy.clip(readout[:2],self.data_range_min,self.data_range_max)
         scaled=numpy.cast['uint16'](clipped*self.to16bit)
         if self.frame_chunk_size>1:
             split_data=numpy.split(scaled, (numpy.arange(self.frame_chunk_size,dtype=numpy.int)*int(readout.shape[1]/self.frame_chunk_size))[1:],axis=1)
@@ -196,6 +241,10 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                 image=chunk_[None,:]
             if hasattr(self,'data_handle'):
                 self.data_handle.append(image[None,:])
+                self.raw_data_handle.append(readout[None,:])
+                self.cct+=1
+                self.printl(f'cct: {self.cct}')
+                
         #Scale back to 0..1 range
         #The 1- is a hack here. TODO: check if raw PMT signal is inverted
         imgs=image/self.to16bit
@@ -211,9 +260,14 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
             self.digital_output = PyDAQmx.Task()
             self.digital_output.CreateDOChan(self.kwargs['shutter_port'],'do', DAQmxConstants.DAQmx_Val_ChanPerLine)
             self.create_channels()
-            ct=0
             self.running=False
+            tlast=time.time()
+            self.frame_counter=0
             while True:
+                now=time.time()
+                if now-tlast>10:
+                    self.printl('Alive')
+                    tlast=now
                 if not self.queues['command'].empty():
                     cmd=self.queues['command'].get()
                     self.printl(cmd)
@@ -222,9 +276,10 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                         filename=cmd[2]
                         self.data_format=cmd[3]
                         self.offset=cmd[4]
+                        self.nframes=cmd[5]
                         self.binning_factor=int(self.kwargs['ai_sample_rate']/self.kwargs['ao_sample_rate'])
                         if filename is not None:
-                            fh=tables.open_file(filename,'w')
+                            self.fh=tables.open_file(filename,'a')
                             datacompressor = tables.Filters(complevel=5, complib='zlib', shuffle = 1)
                             if self.data_format=={}:
                                 datatype = tables.UInt16Atom((1, 2, int(waveform.shape[1]*self.binning_factor)))
@@ -232,10 +287,12 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                                 image_width=int(numpy.diff(self.data_format['boundaries'])[0])
                                 image_height=int(self.data_format['boundaries'].shape[0]/2)
                                 datatype = tables.UInt16Atom((image_height, image_width, len(self.data_format['channels'])))
-                            self.data_handle=fh.create_earray(fh.root, 'twopdata', datatype, (0,),filters=datacompressor)
+                                rawdatatype=tables.Float32Atom((4, int(waveform.shape[1]*self.binning_factor)))
+                            self.data_handle=self.fh.create_earray(self.fh.root, 'twopdata', datatype, (0,),filters=datacompressor)
+                            self.raw_data_handle=self.fh.create_earray(self.fh.root, 'raw', rawdatatype, (0,),filters=datacompressor)
                             if 'metadata' in self.data_format:
                                 for k, v in self.data_format['metadata'].items():
-                                    setattr(fh.root.twopdata.attrs,k,v)
+                                    setattr(self.fh.root.twopdata.attrs,k,v)
                         else:
                             if hasattr(self, 'data_handle'):
                                 del self.data_handle
@@ -248,53 +305,72 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                         self.printl(f'buffer time is {bt}')
                         daq.SyncAnalogIO.start(self, self.kwargs['ai_sample_rate'], self.kwargs['ao_sample_rate'],  waveform)
                         self.printl('Started to save to {0}'.format(filename))
-                        self.open_shutter()
+                        self.filename=filename
+                        self.frame_counter=0
                         self.running=True
+                        self.ct=0
+                        self.cct=0
                     elif cmd[0]=='stop':
-                        self.printl("Stop recording")
-                        self.close_shutter()
-                        readout=daq.SyncAnalogIO.stop(self)
-                        if hasattr(self,'data_handle'):
-                            if readout is not None and len(readout.shape)==2:#In some cases the last readut from daq has an extra dimension. Reason unknown
-                                self.data2file(readout)
-                            fh.close()
-                                
-                            import hdf5io, tifffile
-                            data=hdf5io.read_item(filename, 'twopdata')
-                            tifffn=fileop.replace_extension(filename,'.tiff')
-                            tifffile.imwrite(tifffn,data)
-                            self.printl(f'Saved to {tifffn}')
-                            self.printl('Closing file')
-                        self.running=False
+                        self.stop_recording()
                     elif cmd=='terminate':
                         self.printl('Terminating')
                         break
                     else:
                         self.printl("Unknown command: {0}".format(cmd))
                 if self.running:
+                    if self.frame_counter==NFRAMES_SKIP_AT_SCANNING_START:
+                        self.open_shutter()
                     try:
                         data_chunk=daq.SyncAnalogIO.read(self)
+                        #utils.object2npy({'waveform':waveform, 'data':data_chunk, 'data_format':self.data_format}, r'c:\data\2p.npy')
+                        self.frame_counter+=1
+                        self.printl(f'fc: {self.frame_counter}')
                     except (PyDAQmx.DAQmxFunctions.SamplesNotYetAvailableError,PyDAQmx.DAQmxFunctions.SamplesNoLongerAvailableError) as e:
                         self.printl(self.number_of_ai_samples)
                         import traceback
                         self.printl(traceback.format_exc())
                         self.printl('Read error')
                         continue
-                        
                     if self.queues['raw'].empty():
                         self.queues['raw'].put(data_chunk)
-                    frame=self.data2file(data_chunk)
-                    if self.queues['data'].empty():
-                        self.queues['data'].put(frame)
-                        self.queues['rawimage'].put(self.rawimage)
-                        if data_chunk.min()<0:
-                            self.queues['response'].put(f'Negative voltate is detected: {data_chunk.min()} V on PMT output, please adjust offset')
+                    if self.frame_counter>NFRAMES_SKIP_AT_SCANNING_START:
+                        frame=self.data2file(data_chunk)
+                        if self.queues['data'].empty():
+                            self.queues['data'].put(frame)
+                            self.ct+=1
+                            self.queues['rawimage'].put(self.rawimage)
+                            if data_chunk[:2].min()<0:
+                                self.queues['response'].put(f'Negative voltate is detected: {data_chunk[:2].min()} V on PMT output, please adjust offset')
+                    if self.nframes is not None and self.nframes>0 and self.nframes<self.frame_counter:
+                        self.stop_recording()
+                        self.queues['response'].put('nframes recorded')
                 time.sleep(0.02)
+            self.printl('Process done')
             #Clean up
             self.digital_output.ClearTask()
         except:
             import traceback
             self.printl(traceback.format_exc(),loglevel='error')
+        self.printl('Exit process')
+        
+    def stop_recording(self):
+        self.printl("Stop recording")
+        self.close_shutter()
+        readout=daq.SyncAnalogIO.stop(self)
+        if hasattr(self,'data_handle'):
+            if readout is not None and len(readout.shape)==2:#In some cases the last readut from daq has an extra dimension. Reason unknown
+                self.data2file(readout)
+            self.fh.close()
+            import hdf5io, tifffile
+            data=hdf5io.read_item(self.filename, 'twopdata')
+            tifffn=fileop.replace_extension(self.filename,'.tiff')
+            tifffile.imwrite(tifffn,data)
+            self.printl(f'Saved to {tifffn}')
+            self.printl('Closing file')
+        self.printl(f'Recorded {self.frame_counter} frames,  sent {self.ct} frames to GUI,  {self.cct} frames saved')
+        self.running=False
+        
+        
             
 class Test(unittest.TestCase):
     
@@ -503,6 +579,14 @@ class Test(unittest.TestCase):
         pulse_phase=0
         sw=ScannerWaveform(fsample=fsample, scan_voltage_um_factor=scan_voltage_um_factor, projector_control_voltage=3.3, frame_timing_pulse_width=frame_timing_pulse_width)
         waveform_x, waveform_y, projector_control, frame_timing, boundaries= sw.generate(height, width, resolution, xflyback, yflyback, pulse_width, pulse_phase)
+        
+        
+        from pylab import plot, show
+        plot(waveform_x)
+        plot(sw.generate_smooth(height, width, resolution, xflyback, yflyback))
+        plot(projector_control)
+        show()
+#        pdb.set_trace()
 
 if __name__ == "__main__":
     unittest.main()

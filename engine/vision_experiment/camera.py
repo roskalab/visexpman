@@ -72,14 +72,14 @@ class Camera(gui.VisexpmanMainWindow):
         self.camera1_io_port= self.machine_config.CAMERA1_IO_PORT if hasattr(self.machine_config, 'CAMERA1_IO_PORT') else None
         self.camera2_io_port= self.machine_config.CAMERA2_IO_PORT if hasattr(self.machine_config, 'CAMERA2_IO_PORT') else None
         if self.camera_api=='tisgrabber':
-            self.camera1handler=camera.ISCamera(self.machine_config.CAMERA1_ID, self.logger.filename.replace('.txt', '_cam1.txt'), self.camera1_io_port, frame_rate=50, exposure=10e-3)
+            self.camera1handler=camera.ISCamera(self.machine_config.CAMERA1_ID, self.logger.filename.replace('.txt', '_cam1.txt'), self.camera1_io_port, frame_rate=self.parameters['params/Frame Rate'], exposure=self.parameters['params/Exposure time']*1e-3)
         else:
             self.camera1handler=camera_interface.ImagingSourceCameraHandler(self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3, self.camera1_io_port)
         self.camera1handler.start()
         
         if self.machine_config.CAMERA2_ENABLE:
             if self.camera_api=='tisgrabber':
-                self.camera2handler=camera.ISCamera(self.machine_config.CAMERA2_ID, self.logger.filename.replace('.txt', '_cam2.txt'), frame_rate=20, exposure=10e-3)
+                self.camera2handler=camera.ISCamera(self.machine_config.CAMERA2_ID, self.logger.filename.replace('.txt', '_cam2.txt'),  self.camera2_io_port,  frame_rate=self.parameters['params/Frame Rate'], exposure=self.parameters['params/Exposure time']*1e-3)
             else:
                 self.camera2handler=camera.WebCamera(self.machine_config.EYECAM_ID,os.path.join(self.machine_config.LOG_PATH, 'log_eyecam.txt'),None,filename=None)
             self.camera2handler.start()
@@ -163,8 +163,13 @@ class Camera(gui.VisexpmanMainWindow):
             else:
                 self.camera1handler=camera_interface.ImagingSourceCameraHandler(self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3,  None)
             self.camera1handler.start()
+            if self.machine_config.CAMERA2_ENABLE:
+                self.camera2handler.stop()
+                self.camera2handler=camera.ISCamera(self.machine_config.CAMERA2_ID, self.logger.filename.replace('.txt', '_cam2.txt'), self.camera2_io_port, self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3)
+                self.camera2handler.start()
     
     def start_recording(self,  experiment_parameters=None):
+        self.setFocus()
         try:
             if self.recording:
                 return
@@ -189,6 +194,9 @@ class Camera(gui.VisexpmanMainWindow):
             if self.machine_config.ENABLE_SYNC=='camera':
                 self.aifix=True
                 if self.aifix:
+                    import PyDAQmx
+                    PyDAQmx.DAQmxResetDevice('Dev1')#Does it solve daq memory error showing up after several recordings?
+                    daq.set_digital_line(self.machine_config.MC_STOP_TRIGGER,0)
                     self.ai=daq.AnalogRead(self.machine_config.SYNC_RECORDER_CHANNELS,
                                                 self.machine_config.SYNC_MAX_RECORDING_TIME, 
                                                 self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
@@ -229,16 +237,21 @@ class Camera(gui.VisexpmanMainWindow):
                 if not os.path.exists(outfolder):
                     os.makedirs(outfolder)
                 id=experiment_data.get_id()
-                self.cam1fn=experiment_data.get_recording_path(self.machine_config, {'outfolder': outfolder,  'id': id, 'tag': self.experiment_name_tag},prefix = self.machine_config.CAM1FILENAME_TAG,extension='.avi')
-                self.cam2fn=experiment_data.get_recording_path(self.machine_config, {'outfolder': outfolder,  'id': id, 'tag': self.experiment_name_tag},prefix = self.machine_config.CAM2FILENAME_TAG,extension='.avi')
+                self.cam1fn=experiment_data.get_recording_path(self.machine_config, {'outfolder': outfolder,  'id': id, 'tag': self.experiment_name_tag},prefix = self.machine_config.CAM1FILENAME_TAG,extension='.mp4')
+                self.cam2fn=experiment_data.get_recording_path(self.machine_config, {'outfolder': outfolder,  'id': id, 'tag': self.experiment_name_tag},prefix = self.machine_config.CAM2FILENAME_TAG,extension='.mp4')
                 self.metadatafn=fileop.replace_extension(self.cam1fn, '.mat')
             if self.machine_config.ENABLE_OPENEPHYS_TRIGGER and self.parameters['params/Neuropixel SMA port TRIG'] :
                 tag=f'{self.experiment_name_tag}_{id}'
-                if not openephys.start_recording(self.machine_config.OPENEPHYS_COMPUTER_IP, tag=tag):
-                    self.printc('Openephys cannot be triggered, is it started?')
-                else:
-                    self.printc('Start Openephys')
-                    self.openephys_running=True
+                try:
+                    if not openephys.start_recording(self.machine_config.OPENEPHYS_COMPUTER_IP, tag=tag):
+                        self.printc('Openephys cannot be triggered, is it started?')
+                    else:
+                        self.printc('Start Openephys')
+                        self.openephys_running=True
+                except:
+                    self.recording=False
+                    self.printc('NP cannot be triggered')
+                    return
                 time.sleep(self.machine_config.OPENEPHYS_PRETRIGGER_TIME)
                 if 0 and self.machine_config.OPENEPHYS_DATA_PATH is not None:
                     #Check if openephys related file has appeared
@@ -256,17 +269,20 @@ class Camera(gui.VisexpmanMainWindow):
                     
             if self.camera_api=='tisgrabber':
                 self.camera1handler.save(self.cam1fn)
+                if self.machine_config.CAMERA2_ENABLE:
+                    self.camera2handler.save(self.cam2fn)
                 #self.camera1handler=camera.ISCamera(self.machine_config.CAMERA1_ID, self.logger.filename.replace('.txt', '_cam1.txt'), self.camera1_io_port, self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3, filename=self.cam1fn)
             else:
                 #OBSOLETE
                 self.camera1handler=camera_interface.ImagingSourceCameraHandler(self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3,  self.machine_config.CAMERA_IO_PORT,  filename=self.cam1fn, watermark=True)
             #self.camera1handler.start()
-            if self.machine_config.CAMERA2_ENABLE:
-                raise NotImplementedError('')
-                self.camera2handler=camera.WebCamera(self.machine_config.EYECAM_ID,os.path.join(self.machine_config.LOG_PATH, 'log_eyecam.txt'),self.machine_config.EYECAMERA_IO_PORT,filename=self.eyefn)
-                self.camera2handler.start()
+#            if self.machine_config.CAMERA2_ENABLE:
+#                raise NotImplementedError('')
+#                self.camera2handler=camera.WebCamera(self.machine_config.EYECAM_ID,os.path.join(self.machine_config.LOG_PATH, 'log_eyecam.txt'),self.machine_config.EYECAMERA_IO_PORT,filename=self.eyefn)
+#                self.camera2handler.start()
             if self.parameters['params/Neuropixel SMA port TRIG']:
                 self.printc('ZMQ trigger to NP/openephys')
+            if self.parameters['params/Neuropixel SMA port TRIG'] or 1:
                 time.sleep(2)
                 daq.set_digital_line(self.machine_config.MC_STOP_TRIGGER,1)
             if self.machine_config.ENABLE_STIM_UDP_TRIGGER:
@@ -276,13 +292,17 @@ class Camera(gui.VisexpmanMainWindow):
             import psutil
             p = psutil.Process(self.camera1handler.pid)
             p.nice(psutil.HIGH_PRIORITY_CLASS)
+            if self.machine_config.CAMERA2_ENABLE:
+                p = psutil.Process(self.camera2handler.pid)
+                p.nice(psutil.HIGH_PRIORITY_CLASS)
             self.tstart=time.time()
             self.statusbar.recording_status.setStyleSheet('background:red;')
             self.statusbar.recording_status.setText(msg)
             self.track=[]
         except:
             self.printc(traceback.format_exc())
-            self.send({'trigger': 'cam error'})
+            if hasattr(self,  'send'):
+                self.send({'trigger': 'cam error'})
             
     def stop_recording(self, manual=True):
         try:
@@ -292,8 +312,11 @@ class Camera(gui.VisexpmanMainWindow):
             t0=time.time()
             self.printc('Stop video recording, please wait...')
             self.camera1handler.stop_saving()
+            if self.machine_config.CAMERA2_ENABLE:
+                self.camera2handler.stop_saving()
             if self.parameters['params/Neuropixel SMA port TRIG']:
                 self.printc('Stop Neuropixel')
+            if self.parameters['params/Neuropixel SMA port TRIG'] or 1:
                 daq.set_digital_line(self.machine_config.MC_STOP_TRIGGER,0)
                 time.sleep(1)
             else:
@@ -354,6 +377,9 @@ class Camera(gui.VisexpmanMainWindow):
                 self.matdata['machine_config']=self.machine_config.todict()
                 self.fps_values, fpsmean,  fpsstd=signal.calculate_frame_rate(self.sync[:, self.machine_config.TCAM1_SYNC_INDEX], self.machine_config.SYNC_RECORDER_SAMPLE_RATE, threshold=2.5)
                 self.printc('Measured frame rate is {0:.2f} Hz, std: {1:.2f} ms, recorded {2} frames'.format(fpsmean, 1000/fpsstd,  self.fps_values.shape[0]+1))
+                if self.machine_config.CAMERA2_ENABLE:
+                    self.fps_values, fpsmean,  fpsstd=signal.calculate_frame_rate(self.sync[:, self.machine_config.TCAM2_SYNC_INDEX], self.machine_config.SYNC_RECORDER_SAMPLE_RATE, threshold=2.5)
+                    self.printc('Camera2: Measured frame rate is {0:.2f} Hz, std: {1:.2f} ms, recorded {2} frames'.format(fpsmean, 1000/fpsstd,  self.fps_values.shape[0]+1))
                 try:
                     self.check_timing_signal()
                 except:
@@ -682,6 +708,8 @@ class Camera(gui.VisexpmanMainWindow):
         try:
             if hasattr(self.camera1handler, 'log') and not self.camera1handler.log.empty():
                 self.printc(self.camera1handler.log.get())
+            if self.machine_config.CAMERA2_ENABLE and hasattr(self.camera2handler, 'log') and not self.camera2handler.log.empty():
+                self.printc(self.camera2handler.log.get())
             if hasattr(self, 'ai') and not self.aifix:
                 s=self.sync.shape[0]
                 self.sync=numpy.concatenate((self.sync, self.ai.read()))
@@ -725,7 +753,8 @@ class Camera(gui.VisexpmanMainWindow):
                                 numpy.save('c:\\Data\\log\\{0}.npy'.format(time.time()),  numpy.array(p))
                                 self.logger.info(traceback.format_exc())
                     
-                self.image.set_image(numpy.rot90(numpy.flipud(f)))
+                self.frame1=numpy.rot90(numpy.flipud(f))
+                self.image.set_image(self.frame1)
                 if self.recording and hasattr(self,  'tstart'):
                     dt=time.time()-self.tstart
                     title='{0} s'.format(int(dt))
@@ -738,7 +767,8 @@ class Camera(gui.VisexpmanMainWindow):
             if self.machine_config.CAMERA2_ENABLE:
                 frame=self.camera2handler.read()
                 if frame is not None:
-                    self.camera2image.set_image(numpy.rot90(numpy.flipud(frame)))
+                    self.frame2=numpy.rot90(numpy.flipud(frame))
+                    self.camera2image.set_image(self.frame2)
         except:
             self.printc(traceback.format_exc())
         
