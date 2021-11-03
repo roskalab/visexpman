@@ -357,7 +357,7 @@ class SutterStage(serial.Serial):
     """
     def __init__(self, port, baudrate):
         #TODO: set speed at init
-        serial.Serial.__init__(self,  port, baudrate=9600, timeout=1)
+        serial.Serial.__init__(self,  port, baudrate=9600, timeout=10)
         time.sleep(2)
         try:
             self.reset_controller()

@@ -209,9 +209,9 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                     {'name': 'Rotation', 'type': 'float', 'value': 0.0,  'siPrefix': False, 'suffix': ' degrees'},                    
                 ]}, 
                  {'name': 'Z Stack', 'type': 'group', 'expanded' : False, 'children': [
-                    {'name': 'Start', 'type': 'float', 'value': 0, 'siPrefix': True, 'suffix': 'usteps'},
-                    {'name': 'End', 'type': 'float', 'value': 0,  'siPrefix': True, 'suffix': 'usteps'},
-                    {'name': 'Step', 'type': 'float', 'value': 1, 'siPrefix': True, 'suffix': 'usteps'}, 
+                    {'name': 'Start', 'type': 'float', 'value': 0, 'siPrefix': False, 'suffix': 'usteps', 'decimals': 6},
+                    {'name': 'End', 'type': 'float', 'value': 0,  'siPrefix': False, 'suffix': 'usteps', 'decimals': 6},
+                    {'name': 'Step', 'type': 'float', 'value': 1, 'siPrefix': False, 'suffix': 'usteps', 'decimals': 6}, 
                     {'name': 'Samples per depth', 'type': 'int', 'value': 1},
                     {'name': 'File Format', 'type': 'list', 'value': '.hdf5',  'values': file_formats},
                 ]}, 
@@ -229,7 +229,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 ]}, 
                 {'name': 'Time lapse', 'type': 'group', 'expanded' : True, 'children': [
                     {'name': 'Enable', 'type': 'bool', 'value': False},
-                    {'name': 'Interval', 'type': 'float', 'value': 300,  'suffix': ' s'},
+                    {'name': 'Interval', 'type': 'float', 'value': 300,  'suffix': ' s','decimals': 6},
                     #{'name': 'N frames', 'type': 'float', 'value': 1},
                 ]}, 
             ]
@@ -435,12 +435,14 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 if not hasattr(self,  'last_scan'):
                     self.last_scan=now
                 dt=now-self.last_scan
-                #self.printc(dt)
-                if dt>self.settings['params/Time lapse/Interval'] and not self.twop_running:
+                self.printc(f'Time left since last z stack trigger: {round(dt)} s')
+                self.parameter_changed()
+                if (dt==0 or dt>self.settings['params/Time lapse/Interval']) and not self.twop_running:
                     import psutil
                     self.printc(f'Debug: {psutil.virtual_memory().percent}% memory usage')
                     self.z_stack_action()
                     self.last_scan=now
+                    self.parameter_changed()
         except:
             self.printc('Error happened during time lapse:', popup_error=False)
             self.printc(traceback.format_exc(), popup_error=False)
@@ -908,6 +910,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             w=int(self.settings['params/Resolution']*self.settings['params/Scan Width'])
             datatype = tables.UInt16Atom((self.settings['params/Z Stack/Samples per depth'], h, w, 2))
             self.zstack_data_handle=self.zstackfile.create_earray(self.zstackfile.root, 'zstackdata', datatype, (0,),filters=datacompressor)
+            self.tifffns=[]
         except:
             self.printc(traceback.format_exc())
         
@@ -915,12 +918,12 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         if self.z_stack_running:
             try:
                 if self.z_stack_state=='setz':
-                    self.stage.z=self.depths[self.depth_index]
-                    time.sleep(2)
-                    self.printc(f"Set position to {self.stage.z} ustep")
-                    self.record_action(nframes=self.settings['params/Z Stack/Samples per depth'])
-                    
-                    self.z_stack_state='wait'
+                    if not self.twop_running:
+                        self.stage.z=self.depths[self.depth_index]
+                        time.sleep(2)
+                        self.printc(f"Set position to {self.stage.z} ustep")
+                        self.record_action(nframes=self.settings['params/Z Stack/Samples per depth'])
+                        self.z_stack_state='wait'
                 elif self.z_stack_state=='wait':
                     if not self.nframes_recording_running:
                         #Read frame
@@ -933,13 +936,16 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                         h.close()
                         os.remove(self.filename)
                         import shutil
-                        shutil.move(fileop.replace_extension(self.filename, '.tiff'), fileop.replace_extension(self.filename, f'_{self.depths[self.depth_index]}um.tiff'))
+                        dsttiff=fileop.replace_extension(self.filename, f'_{self.depths[self.depth_index]}um.tiff')
+                        self.tifffns.append(dsttiff)
+                        shutil.move(fileop.replace_extension(self.filename, '.tiff'), dsttiff)
                         self.z_stack_state='setz'
                         self.depth_index+=1
                         if len(self.depths)==self.depth_index:
+                            self.printc('All depths imaged')
                             self.finish_zstack()
             except:
-                self.printc(traceback.format_exc())
+                self.printc(traceback.format_exc(), popup_error=False)
                 self.finish_zstack()
 
     def finish_zstack(self):
@@ -950,7 +956,10 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.settings2attr(self.zstackfile.root.depths.attrs)
         self.z_stack_running=False
         self.zstackfile.close()
-        self.stage.z=self.depths[0]
+        try:
+            self.stage.z=self.depths[0]
+        except:
+            time.sleep(2)#Wait a bit until it reaches endposition and recovers
         self.printc(f'Stage set back to initial position to {self.stage.z} ustep')
         if self.settings['params/Z Stack/File Format']!='.hdf5':
             hdf5_convert(self.zstack_filename, self.settings['params/Z Stack/File Format'])
