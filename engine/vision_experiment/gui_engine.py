@@ -275,6 +275,7 @@ class ExperimentHandler(object):
                     import scipy.io
                     pfn=os.path.join(self.machine_config.PROTOCOL_PATH, self.guidata.read('Protocol'))
                     wf_file_content=scipy.io.loadmat(pfn)
+                    self.wf_file_content=wf_file_content
                     vn=[k for k in wf_file_content.keys() if k[0]!='_'][0]
                     self.printc(f'Read {vn} from {pfn}')
                     pulses=wf_file_content[vn]
@@ -740,6 +741,8 @@ class ExperimentHandler(object):
                     experiment_data.hdf52mat(fn, scale_sync=True)
                 elif 'stim' in self.machine_config.CONNECTIONS and not hasattr(self,  'ao'):
                     outfile=self.current_experiment_parameters['outfilename']
+                    if not os.path.exists(outfile):
+                        self.printc(f'{outfile} is missing')
                     fileop.merge_hdf5_files(self.daqdatafile.filename, outfile)
                     self.printc('Sync data merged to {0}'.format(outfile))
                     experiment_data.hdf52mat(outfile, scale_sync=True)
@@ -805,10 +808,11 @@ class ExperimentHandler(object):
 #                if self.guidata.read('Displayed signal length')==0:
 #                    self._plot_elphys(hh.sync)
                 try:
+                    self.printc('Check timing signals')
                     hh.sync2time()
                     hh.check_timing(check_frame_rate=True)
                 except:
-                    pass
+                    self.printc('Checking timing signals failed')
 #                    self.printc(traceback.format_exc())
                 hh.close()
         self.to_gui.put({'update_status':'idle'})
@@ -1248,6 +1252,8 @@ class Analysis(object):
         else:
             self.to_gui.put({'plot_title': os.path.dirname(self.filename)+'<br>'+os.path.basename(self.filename)})
             sync=self.datafile.findvar("sync")
+            self.sample_rate=10000
+            self.printc('Warning: read sample rate from file')
             self._plot_elphys(sync,  full_view=True)
         if self.machine_config.PLATFORM not in  ['resonant',  "elphys", 'erg']:#Do not load imaging data
             self.datafile.get_image(image_type=self.guidata.read('3d to 2d Image Function'),motion_correction=self.guidata.read('Motion Correction'))
@@ -1305,7 +1311,10 @@ class Analysis(object):
         self.datafile.close()
         self._bouton_analysis()
         if self.machine_config.PLATFORM in ['elphys']:
-            self.spikes2polar(filename)
+            try:
+                self.spikes2polar(filename)
+            except:
+                self.printc('Polar plot cannot be generated')
         if hasattr(self, 'user_gui_engine') and hasattr(self.user_gui_engine,'open_datafile'):
             self.user_gui_engine.open_datafile(self.filename)
 

@@ -291,10 +291,13 @@ class CaImagingData(supcl):
             
     def check_timing(self, check_frame_rate=True):
         errors=[]
-        if self.timg.shape[0]==0 and self.configs['machine_config']['TIMG_SYNC_INDEX']!=-1:
-            errors.append('No imaging sync signal detected.')
-        elif not (self.timg[0]<self.tstim[0] and self.timg[-1]>self.tstim[-1]) and self.configs['machine_config']['TIMG_SYNC_INDEX']!=-1:
-            errors.append('{0} of stimulus was not imaged'.format('Beginning' if self.timg[0]>self.tstim[0] else 'End') )
+        if hasattr(self,  'timg'):
+            if self.timg.shape[0]==0 and self.configs['machine_config']['TIMG_SYNC_INDEX']!=-1:
+                errors.append('No imaging sync signal detected.')
+            elif not (self.timg[0]<self.tstim[0] and self.timg[-1]>self.tstim[-1]) and self.configs['machine_config']['TIMG_SYNC_INDEX']!=-1:
+                errors.append('{0} of stimulus was not imaged'.format('Beginning' if self.timg[0]>self.tstim[0] else 'End') )
+        if self.tstim.shape[0]%2!=0:
+            raise RuntimeError(f'Invalid stim timing signal: {self.tstim}')
         if check_frame_rate:
             #Check frame rate
             if not hasattr(self,  'stimulus_frame_info'):

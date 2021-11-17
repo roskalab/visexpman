@@ -636,6 +636,12 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
         
     def set_scale(self,scale):
         self.img.setScale(scale)
+        
+    def add_polygon(self,points):
+        self.points=points.tolist()
+        print(self.points)
+        pl=self.plot.plot(points[:,0],points[:,1], pen=(0,0,185),symbolBrush=(0,0,185), symbolPen='b', pxMode=True,symbolSize=self.dot_size)
+        self.manual_points=[pl]
 
     def mouse_clicked(self,e):
         print(e)
@@ -654,6 +660,11 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
                             if self.concatenate_manual_points:
                                 self.plot.removeItem(self.manual_points[-1])
                                 del self.manual_points[-1]
+                                del self.points[-1]
+                                points=numpy.array(self.points)
+                                if len(points)>0:
+                                    pl=self.plot.plot(points[:,0],points[:,1], pen=(0,0,185),symbolBrush=(0,0,185), symbolPen='b', pxMode=True,symbolSize=self.dot_size)
+                                    self.manual_points.append(pl)
                             else:
                                 self.point_coos=numpy.array([[self.manual_points[pi].xvalue,self.manual_points[pi].yvalue] for pi in range(len(self.manual_points))])
                                 distance_square_sums=((self.point_coos-numpy.array([[p.x(),p.y()]]))**2).sum(axis=1)                            
@@ -666,11 +677,14 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
                         #
                         if self.concatenate_manual_points:
                             if len(self.manual_points)==0:
-                                points=[[p.x(),p.y()]]
+                                self.points=[[p.x(),p.y()]]
                             else:
-                                points=[[p.xvalue, p.yvalue] for p in self.manual_points]
-                                points.append([p.x(),p.y()])
-                            points=numpy.array(points)
+                                #points=[[p.xvalue, p.yvalue] for p in self.manual_points]
+                                self.points.append([p.x(),p.y()])
+                            if len(self.manual_points):
+                                self.plot.removeItem(self.manual_points[-1])
+                                del self.manual_points[-1]
+                            points=numpy.array(self.points)
                             pl=self.plot.plot(points[:,0],points[:,1], pen=(0,0,185),symbolBrush=(0,0,185), symbolPen='b', pxMode=True,symbolSize=self.dot_size)
                         else:
                             pl=self.plot.plot(numpy.array([p.x()]),numpy.array([p.y()]),  pen=None, symbol='o',symbolSize=self.dot_size)
