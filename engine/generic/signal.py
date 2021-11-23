@@ -102,12 +102,27 @@ def central_object(binary_image):
     else:
         center=labels[int(labels.shape[0]/2),int(labels.shape[1]/2),int(labels.shape[2]/2)]
     return numpy.where(labels==center,1,0)
-    
+       
 def find_biggest_object(binary_image):#Works also for 3d image
+    if binary_image.sum()==0:
+        return binary_image
     labels, n=scipy.ndimage.label(binary_image)
     ii=numpy.array([numpy.where(labels==li)[0].shape[0] for li in range(1,n+1)]).argmax()+1
     biggest_object=numpy.where(labels==ii,True,False)
     return biggest_object
+    
+def object_size(binary_image):
+    '''
+    Determines object size by erosion
+    '''
+    img=binary_image.copy()
+    ct=0
+    while True:
+        img=scipy.ndimage.binary_erosion(img)
+        ct+=1
+        if img.sum()==0:
+            break
+    return ct*2
     
 def cut_mask(im,mask):
     x,y=numpy.nonzero(mask)

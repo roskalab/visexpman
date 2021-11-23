@@ -353,30 +353,56 @@ class RemoteFocus(object):
 class SutterStage(serial.Serial):
     """
     Commands are based on http://neurophysics.ucsd.edu/Manuals/Sutter%20Instruments/MP-285%20Reference%20Manual.pdf
+    #Set speed  self.write(b'V'+struct.pack('<H', 1)+b'\r');self.read(100)
     """
     def __init__(self, port, baudrate):
-        serial.Serial.__init__(self,  port, baudrate=9600, timeout=1)
+        #TODO: set speed at init
+        serial.Serial.__init__(self,  port, baudrate=9600, timeout=10)
         time.sleep(2)
-        self.write(b'b\r')#Set to relative mode
-        resp=self.read(1)
+        try:
+            self.reset_controller()
+            time.sleep(100e-3)
+            #self.write(b'b\r')#Set to relative mode
+            self.write(b'a\r')#Set to absolue mode
+            self.check_response()
+        except:
+            import pdb
+            pdb.set_trace()
+        pass
+            
+    def check_response(self):
+        resp=self.read(10)
         if resp!=b'\r':
+            print("Try to recover")
+            time.sleep(1)
+            self.reset_controller()
+            raise IOError('No access to stage: {0}'.format(resp))
+            
+    def reset_controller(self):
+        self.write(b'r\r')
+        resp=self.read(10)
+        if len(resp)==0:
             raise IOError('No access to stage: {0}'.format(resp))
         
     @property
-    def z(self):
+    def z(self):#self.write(b'c\r');resp=self.read(13);struct.unpack('<iii',resp[:-1])
         self.write(b'c\r')
         resp=self.read(13)
+        if resp[-1]==255:
+            print("Try to recover")
+            self.reset_controller()
+            self.write(b'c\r')
+            resp=self.read(13)
         if len(resp)!=13 or resp[-1]!=13:
             raise IOError("Invalid response: {0}, {1}".format(resp, len(resp)))
-        return struct.unpack('<iii',resp[:-1])[2]
+        self.xyz=struct.unpack('<iii',resp[:-1])
+        return self.xyz[2]
         
     @z.setter
-    def z(self, value):
+    def z(self, value):#self.write(b'm'+struct.pack('<iii', 0, 0, 0)+b'\r');self.read(1)
         cmd=struct.pack('<iii', 0, 0, int(value))
         self.write(b'm'+cmd+b'\r')
-        resp=self.read(1)
-        if resp!=b'\r':
-            raise IOError('No access to stage')
+        self.check_response()
 
 class MotorTestConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):
