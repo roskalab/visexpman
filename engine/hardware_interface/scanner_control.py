@@ -519,7 +519,7 @@ class Test(unittest.TestCase):
                 except:
                     pdb.set_trace()
                 
-    @unittest.skip('')    
+    @unittest.skip('')
     def test_rawpmt2img(self):
         '''
         Generate valid scanning waveforms and feed them as raw pmt signals
@@ -554,6 +554,7 @@ class Test(unittest.TestCase):
             except:
                 pass
                 
+    @unittest.skip('')
     def test_waveform_generator_test_bench(self):
         fsample=400e3
         scan_voltage_um_factor=3.0/256
@@ -576,5 +577,65 @@ class Test(unittest.TestCase):
         show()
 #        pdb.set_trace()
 
+    def test_image_correction_scanner_position_signal(self):
+        fn='C:\\data\\2p\\2p_TEST5_202110131558347.hdf5'
+        folder=r'G:\My Drive\2p'
+        fsample=250e3
+        files=[fn]
+        files.extend(fileop.listdir(folder))
+        for fn in files:
+            hh=tables.open_file(fn, 'r')
+            w=hh.root.twopdata.attrs['params_Scan_Width']
+            h=hh.root.twopdata.attrs['params_Scan_Height']
+            r=hh.root.twopdata.attrs['params_Resolution']
+            raw=hh.root.raw.read()
+            xpos=raw[:,2,:]
+            xpos=xpos.flatten()
+            pmt0=raw[:,0].flatten()
+            pmt1=raw[:,1].flatten()
+            pmt=numpy.array([pmt0,pmt1])
+            #y signal would be ignored, since each line is separately extracted
+            #Filter xpos signal with butterworth filter
+            import scipy.signal
+            filt=scipy.signal.butter(4, 10000/fsample, btype='low')
+            xposfilt=scipy.signal.filtfilt(filt[0], filt[1], xpos).real
+            
+            #Detect zero crossing of filtered signal. Scan range can be calculated from um/voltage scale in Volt. This can be converted to feedback signal voltage range 
+            #-> assuming that the position  signal is monotonous, the start and end of the x scan can be marked (on time axis)
+            #Calculate nonlinearity within this range. Compare this with one pixel's voltage step. If larger then raise error
+            #So the idea is to find a linear range where nonlinearity is below one pixel and take PMT signal from this range
+            #Zero crossing
+            zero_crossing=numpy.where(numpy.diff(numpy.sign(xposfilt))>0)[0][:int(h*r)]
+            if zero_crossing.shape[0]>0:
+                dwelltime=(1000/fsample)/(xposfilt[zero_crossing[0]+1]-xposfilt[zero_crossing[0]])*0.75/0.5#ms/V
+            else:
+                dwelltime=0
+            #For each scan extract linear range
+            linear_range_boundaries=numpy.array([zero_crossing-int(r*w/2),zero_crossing+int(r*w/2)]).T
+            if (linear_range_boundaries<0).any():
+                raise RuntimeError('Incorrect scan')
+            #Extract xpos signal
+            sweeps=numpy.array(numpy.split(xposfilt, linear_range_boundaries.flatten())[1::2])
+            #Check if signal change is larger than one pixel
+            if sweeps.shape[0]>0:
+                one_pixel_voltage=abs(sweeps[:,0]-sweeps[:,-1]).mean()/(w*r)
+                diff=numpy.diff(sweeps,axis=1)
+                from pylab import imshow, show
+                #imshow(diff);show()
+            if 1:
+                from pylab import plot, show, specgram, magnitude_spectrum, ylim, xlim, title, savefig, cla, clf
+                cla()
+                clf()
+                #plot(xpos);plot(xposfilt);show()
+                #specgram(xpos,Fs=fsample);show()
+                magnitude_spectrum(xpos,Fs=fsample)
+                ylim([0, 0.0005])
+                xlim([0, 40000])
+                title(f'dwelltime {dwelltime:.2f} ms/V, scan with: {w} um, resolution: {r}, \n {raw[0][2].std()}, {raw[0][3].std()}')
+                savefig(f'c:\\tmp\\{os.path.basename(fn)}.png', dpi=150)
+#                show()
+            pass
+
 if __name__ == "__main__":
     unittest.main()
+    
