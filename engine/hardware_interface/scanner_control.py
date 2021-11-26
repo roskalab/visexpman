@@ -600,17 +600,44 @@ class Test(unittest.TestCase):
             w=hh.root.twopdata.attrs['params_Scan_Width']
             h=hh.root.twopdata.attrs['params_Scan_Height']
             r=hh.root.twopdata.attrs['params_Resolution']
+            nxscans_flyback=hh.root.twopdata.attrs['params_Advanced_Y_Return_Time']
             raw=hh.root.raw.read()
             xpos=raw[:,2,:]
-            xpos=xpos.flatten()
-            pmt0=raw[:,0].flatten()
-            pmt1=raw[:,1].flatten()
+            xpos=xpos[0]
+            pmt0=raw[0,0]
+            pmt1=raw[0,1]
             pmt=numpy.array([pmt0,pmt1])
             #y signal would be ignored, since each line is separately extracted
             #Filter xpos signal with butterworth filter
             import scipy.signal
             filt=scipy.signal.butter(4, 10000/fsample, btype='low')
             xposfilt=scipy.signal.filtfilt(filt[0], filt[1], xpos).real
+            #Split image to periods by finding peaks
+            pos_peaks=scipy.signal.find_peaks(xposfilt)[0]
+            neg_peaks=scipy.signal.find_peaks(-xposfilt)[0]
+            if pos_peaks.shape[0]!=w*r+nxscans_flyback!=neg_peaks.shape[0]:
+                raise ValueError('Incorrect number of scans in position signal')
+            #Remove flyback scans
+            pos_peaks=pos_peaks[:int(w*r)]
+            neg_peaks=neg_peaks[:int(w*r)]
+            boundaries=zip(neg_peaks, pos_peaks)
+            image_lines=[]
+            orig_image_lines=[]
+            for s, e in zip(neg_peaks, pos_peaks):
+                #Extract each line and interpolate pmt signals
+                posi=xposfilt[s:e]
+                pmti=pmt[0, s:e]
+                from pylab import plot, show, imshow, figure
+                intp=scipy.interpolate.interp1d(posi, pmti, kind='cubic')
+                virtual_position_vector=numpy.linspace(posi.min(), posi.max(), int(r*w))
+                image_lines.append(intp(virtual_position_vector))
+                orig_image_lines.append(pmti)
+            image=numpy.array(image_lines)
+            min_line_length=min([i.shape[0] for i in orig_image_lines])
+            orig_image=numpy.array([l[:min_line_length] for l in orig_image_lines])
+            figure(1);imshow(image);figure(2);imshow(orig_image);show()
+            
+            
             
             #Detect zero crossing of filtered signal. Scan range can be calculated from um/voltage scale in Volt. This can be converted to feedback signal voltage range 
             #-> assuming that the position  signal is monotonous, the start and end of the x scan can be marked (on time axis)
