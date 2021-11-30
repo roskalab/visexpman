@@ -15,7 +15,10 @@ except ImportError:
     pass
 from PIL import Image,ImageDraw
 import matplotlib
-matplotlib.use('Qt4Agg')
+try:
+    matplotlib.use('Qt4Agg')
+except:
+    pass
 #from pylab import show,plot,imshow,figure,title,subplot,savefig, cla, clf,xlabel,ylabel,gca,Rectangle
 from visexpman.engine.generic import utils,fileop,signal,videofile,introspect
 try:
