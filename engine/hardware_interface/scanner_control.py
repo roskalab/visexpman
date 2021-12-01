@@ -6,8 +6,9 @@ Classes related to two photon scanning:
 '''
 
 import numpy, unittest, pdb, itertools,multiprocessing,time,os,tables
+import traceback
 from visexpman.engine.generic import utils, fileop
-from visexpman.engine.hardware_interface import instrument,daq
+from visexpman.engine.hardware_interface import instrument,daq, stage_control
 try:
     import PyDAQmx
     import PyDAQmx.DAQmxConstants as DAQmxConstants
@@ -173,7 +174,7 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
     def __init__(self, ai_channels,  ao_channels, logfile, **kwargs):
         self.logfile=logfile
         self.queues={'command': multiprocessing.Queue(), 'response': multiprocessing.Queue(), 'data': multiprocessing.Queue(),\
-                        'rawimage':multiprocessing.Queue(), 'raw':multiprocessing.Queue()}
+                        'rawimage':multiprocessing.Queue(), 'raw':multiprocessing.Queue(), 'stage':multiprocessing.Queue()}
         instrument.InstrumentProcess.__init__(self, self.queues, logfile)
         daq.SyncAnalogIO.__init__(self,  ai_channels,  ao_channels,  kwargs['timeout'])
         self.kwargs=kwargs
@@ -263,6 +264,9 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
             self.running=False
             tlast=time.time()
             self.frame_counter=0
+            if 'stage_port' in self.kwargs:
+                self.stage=stage_control.SutterStage(self.kwargs['stage_port'],  self.kwargs['stage_baudrate'])
+            
             while True:
                 now=time.time()
                 if now-tlast>10:
@@ -315,6 +319,17 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                     elif cmd=='terminate':
                         self.printl('Terminating')
                         break
+                    elif cmd[0]=='read_z':
+                        self.queues['stage'].put(self.stage.z)
+                    elif cmd[0]=='set_z':
+                        self.stage.z=cmd[1]
+                    elif cmd[0]=='set_origin':
+                        self.stage.write(b'o\r')
+                        try:
+                            self.stage.check_response()
+                        except:
+                            self.queues['response'].put(traceback.format_exc())
+                        self.queues['response'].put(f'z Origin set: {self.stage.z} ustep')
                     else:
                         self.printl("Unknown command: {0}".format(cmd))
                 if self.running:
@@ -370,11 +385,24 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
         self.printl(f'Recorded {self.frame_counter} frames,  sent {self.ct} frames to GUI,  {self.cct} frames saved')
         self.running=False
         
+    def set_origin(self):
+        self.queues['command'].put(('set_origin',))
+
+    def set_z(self, z):
+        self.queues['command'].put(('set_z',z))
+        
+    def read_z(self):
+        self.queues['command'].put(('read_z',))
+        time.sleep(1)
+        if not self.queues['stage'].empty():
+            return self.queues['stage'].get()
+        
 def pmt2undistorted_image(filename, fcut=10e3):
     '''
-    From hdf5 file containing raw pmt signal and scanner position signals, 2p image is reconstructed
-    Distortion coming from scanner motion is corrected. Each x scanner sweep's position signal is used for 
-    generating an interpolatio
+    2p image is reconstructed from hdf5 file containing raw pmt signal and scanner position signals
+    Distortion coming from scanner motion is corrected. Position signal of each sweep of x scanner is
+    individually processed and the corresponding image line is calculated. This ensures that motion transients
+    are also taken into account.
     
     fcut: cutting frequency of low pass filter applied on pmt signal
     '''
