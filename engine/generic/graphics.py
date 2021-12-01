@@ -108,6 +108,7 @@ class Screen(object):
         self.angle_step = 10.0
         self.scale_step = 0.05
         self.init_flip_variables()
+        self.frame_counter = 0
         if self.init_mode == 'create_screen':
             glutInit()
             #create screen using parameters in config
@@ -513,13 +514,30 @@ class Screen(object):
                                 ])
         
         return vertices
+        
+    def draw_bitcode(self, cnt_value):
+        START_COL = -(self.screen_resolution['col']/2)
+        START_ROW =   (self.screen_resolution['row']/2)-0
+        SIZE = {'col':1 , 'row':1}
+        center  = {'col':0 , 'row':0}
+        for bit in range(8):
+            if((cnt_value & (1<<bit))):
+                color = [1,1,1]
+            else:
+                color = [0,0,0]
+            center['col'] = START_COL + SIZE[ 'col']/2 + bit * SIZE[ 'col']
+            center['row'] = START_ROW - SIZE[ 'row']/2
+            self.render_rectangle(center ,  SIZE,  color)    
+        
+        
     #Placeholder functions that user can overdefine
     def render_before_set_view(self):        
         #placeholder for graphics items that shall not be translated or rotated by user when viewport is adjusted
         pass
         
     def before_flip(self):
-        pass
+        self.draw_bitcode(self.frame_counter%255)
+        self.frame_counter = self.frame_counter + 1
         
     def after_flip(self):
         pass
