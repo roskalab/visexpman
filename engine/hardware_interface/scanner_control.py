@@ -370,6 +370,69 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
         self.printl(f'Recorded {self.frame_counter} frames,  sent {self.ct} frames to GUI,  {self.cct} frames saved')
         self.running=False
         
+def pmt2undistorted_image(filename, fcut=10e3):
+    '''
+    From hdf5 file containing raw pmt signal and scanner position signals, 2p image is reconstructed
+    Distortion coming from scanner motion is corrected. Each x scanner sweep's position signal is used for 
+    generating an interpolatio
+    
+    fcut: cutting frequency of low pass filter applied on pmt signal
+    '''
+    fsample=250e3
+    hh=tables.open_file(filename, 'r')
+    w=hh.root.twopdata.attrs['params_Scan_Width']
+    h=hh.root.twopdata.attrs['params_Scan_Height']
+    r=hh.root.twopdata.attrs['params_Resolution']
+    nxscans_flyback=hh.root.twopdata.attrs['params_Advanced_Y_Return_Time']
+    raw=hh.root.raw.read()
+    frames=[]
+    distorted_frames=[]
+    #Filter xpos signal with butterworth filter
+    import scipy.signal
+    lowpassfilter=scipy.signal.butter(4, fcut/fsample, btype='low')
+    for fi in range(raw.shape[0]):
+        pmt0=raw[fi,0]
+        pmt1=raw[fi,1]
+        pmt=numpy.array([pmt0,pmt1])
+        xpos=raw[fi,2,:]
+        xposfilt=scipy.signal.filtfilt(lowpassfilter[0], lowpassfilter[1], xpos).real
+        #y signal would be ignored, since each line is separately extracted
+        #Split image to periods by finding peaks
+        pos_peaks=scipy.signal.find_peaks(xposfilt)[0]
+        neg_peaks=scipy.signal.find_peaks(-xposfilt)[0]
+        if pos_peaks.shape[0]!=w*r+nxscans_flyback!=neg_peaks.shape[0]:
+            raise ValueError('Incorrect number of scans in position signal')
+        #Remove flyback scans
+        pos_peaks=pos_peaks[:int(w*r)]
+        neg_peaks=neg_peaks[:int(w*r)]
+        image_lines=[]
+        orig_image_lines=[]
+        for s, e in zip(neg_peaks, pos_peaks):
+            #Extract each line and interpolate pmt signals
+            posi=xposfilt[s:e]
+            pmti=pmt[0, s:e]
+            intp=scipy.interpolate.interp1d(posi, pmti, kind='cubic')
+            virtual_position_vector=numpy.linspace(posi.min(), posi.max(), int(r*w))
+            image_lines.append(intp(virtual_position_vector))
+            orig_image_lines.append(pmti)
+        image=numpy.array(image_lines)
+        frames.append(image)
+        min_line_length=min([i.shape[0] for i in orig_image_lines])
+        orig_image=numpy.array([l[:min_line_length] for l in orig_image_lines])
+        distorted_frames.append(orig_image)
+    distorted_frames=numpy.array(distorted_frames)
+    frames=numpy.array(frames)
+    return frames, distorted_frames
+    if 0:
+        from pylab import show, imshow, subplot, suptitle
+        suptitle('Raw vs undistorted images')
+        nlines=min(frames.shape[0],2)
+        for nli in range(nlines):
+            subplot(nlines, 2,  nli*2+1)
+            imshow(distorted_frames[nli])
+            subplot(nlines, 2, nli*2+2)
+            imshow(frames[nli])
+        show()
         
             
 class Test(unittest.TestCase):
@@ -596,85 +659,11 @@ class Test(unittest.TestCase):
         files=[fn]
         files.extend(fileop.listdir(folder))
         for fn in files:
-            hh=tables.open_file(fn, 'r')
-            w=hh.root.twopdata.attrs['params_Scan_Width']
-            h=hh.root.twopdata.attrs['params_Scan_Height']
-            r=hh.root.twopdata.attrs['params_Resolution']
-            nxscans_flyback=hh.root.twopdata.attrs['params_Advanced_Y_Return_Time']
-            raw=hh.root.raw.read()
-            xpos=raw[:,2,:]
-            xpos=xpos[0]
-            pmt0=raw[0,0]
-            pmt1=raw[0,1]
-            pmt=numpy.array([pmt0,pmt1])
-            #y signal would be ignored, since each line is separately extracted
-            #Filter xpos signal with butterworth filter
-            import scipy.signal
-            filt=scipy.signal.butter(4, 10000/fsample, btype='low')
-            xposfilt=scipy.signal.filtfilt(filt[0], filt[1], xpos).real
-            #Split image to periods by finding peaks
-            pos_peaks=scipy.signal.find_peaks(xposfilt)[0]
-            neg_peaks=scipy.signal.find_peaks(-xposfilt)[0]
-            if pos_peaks.shape[0]!=w*r+nxscans_flyback!=neg_peaks.shape[0]:
-                raise ValueError('Incorrect number of scans in position signal')
-            #Remove flyback scans
-            pos_peaks=pos_peaks[:int(w*r)]
-            neg_peaks=neg_peaks[:int(w*r)]
-            boundaries=zip(neg_peaks, pos_peaks)
-            image_lines=[]
-            orig_image_lines=[]
-            for s, e in zip(neg_peaks, pos_peaks):
-                #Extract each line and interpolate pmt signals
-                posi=xposfilt[s:e]
-                pmti=pmt[0, s:e]
-                from pylab import plot, show, imshow, figure
-                intp=scipy.interpolate.interp1d(posi, pmti, kind='cubic')
-                virtual_position_vector=numpy.linspace(posi.min(), posi.max(), int(r*w))
-                image_lines.append(intp(virtual_position_vector))
-                orig_image_lines.append(pmti)
-            image=numpy.array(image_lines)
-            min_line_length=min([i.shape[0] for i in orig_image_lines])
-            orig_image=numpy.array([l[:min_line_length] for l in orig_image_lines])
-            figure(1);imshow(image);figure(2);imshow(orig_image);show()
+            t0=time.time()
+            pmt2undistorted_image(fn)
+            print(time.time()-t0)
             
             
-            
-            #Detect zero crossing of filtered signal. Scan range can be calculated from um/voltage scale in Volt. This can be converted to feedback signal voltage range 
-            #-> assuming that the position  signal is monotonous, the start and end of the x scan can be marked (on time axis)
-            #Calculate nonlinearity within this range. Compare this with one pixel's voltage step. If larger then raise error
-            #So the idea is to find a linear range where nonlinearity is below one pixel and take PMT signal from this range
-            #Zero crossing
-            zero_crossing=numpy.where(numpy.diff(numpy.sign(xposfilt))>0)[0][:int(h*r)]
-            if zero_crossing.shape[0]>0:
-                dwelltime=(1000/fsample)/(xposfilt[zero_crossing[0]+1]-xposfilt[zero_crossing[0]])*0.75/0.5#ms/V
-            else:
-                dwelltime=0
-            #For each scan extract linear range
-            linear_range_boundaries=numpy.array([zero_crossing-int(r*w/2),zero_crossing+int(r*w/2)]).T
-            if (linear_range_boundaries<0).any():
-                raise RuntimeError('Incorrect scan')
-            #Extract xpos signal
-            sweeps=numpy.array(numpy.split(xposfilt, linear_range_boundaries.flatten())[1::2])
-            #Check if signal change is larger than one pixel
-            if sweeps.shape[0]>0:
-                one_pixel_voltage=abs(sweeps[:,0]-sweeps[:,-1]).mean()/(w*r)
-                diff=numpy.diff(sweeps,axis=1)
-                from pylab import imshow, show
-                #imshow(diff);show()
-            if 1:
-                from pylab import plot, show, specgram, magnitude_spectrum, ylim, xlim, title, savefig, cla, clf
-                cla()
-                clf()
-                #plot(xpos);plot(xposfilt);show()
-                #specgram(xpos,Fs=fsample);show()
-                magnitude_spectrum(xpos,Fs=fsample)
-                ylim([0, 0.0005])
-                xlim([0, 40000])
-                title(f'dwelltime {dwelltime:.2f} ms/V, scan with: {w} um, resolution: {r}, \n {raw[0][2].std()}, {raw[0][3].std()}')
-                savefig(f'c:\\tmp\\{os.path.basename(fn)}.png', dpi=150)
-#                show()
-            pass
-
 if __name__ == "__main__":
     unittest.main()
     

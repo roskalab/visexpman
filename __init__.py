@@ -1,7 +1,9 @@
-#TODO: remove these 3 imports:
 import sys
-import os
-import numpy
+#Expose most commonly used modules
+from visexpman.engine.generic import (fileop, utils, signal, gui)
+from visexpman.engine.hardware_interface import (daq, camera)
+from visexpman.engine.hardware_interface.scanner_control import pmt2undistorted_image
+
 
 
 version = 'v0.4.0'
