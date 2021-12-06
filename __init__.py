@@ -2,7 +2,10 @@ import sys
 #Expose most commonly used modules
 from visexpman.engine.generic import (fileop, utils, signal, gui)
 from visexpman.engine.hardware_interface import (daq, camera)
-from visexpman.engine.hardware_interface.scanner_control import pmt2undistorted_image
+try:
+    from visexpman.engine.hardware_interface.scanner_control import pmt2undistorted_image
+except:
+    pass
 
 
 
