@@ -48,9 +48,6 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         
         self.debug = gui.Debug(self)
         
-        
-        
-        
         self.main_tab = QtGui.QTabWidget(self)
         self.params = gui.ParameterTable(self, self.params_config)
         self.params.params.sigTreeStateChanged.connect(self.parameter_changed)
@@ -86,9 +83,6 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         
         self.main_tab.setMinimumHeight(self.machine_config.GUI_HEIGHT * 0.5)
         self.debug.setMaximumHeight(self.machine_config.GUI_HEIGHT * 0.3)
-        
-        
-
         
         self.create_image_widget(dock=True)
         
@@ -316,12 +310,23 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
     def _init_hardware(self):
         self.daq_logfile=self.logger.filename.replace('2p', '2p_daq')
         self.waveform_generator=scanner_control.ScannerWaveform(machine_config=self.machine_config)
-        self.aio=scanner_control.SyncAnalogIORecorder(self.machine_config.AI_CHANNELS,
+        if self.machine_config.STAGE_IN_SCANNER_PROCESS:
+            self.aio=scanner_control.SyncAnalogIORecorder(self.machine_config.AI_CHANNELS,
                                                                         self.machine_config.AO_CHANNELS,
                                                                         self.daq_logfile,
                                                                         timeout=self.machine_config.DAQ_TIMEOUT,
                                                                         ai_sample_rate=self.machine_config.AI_SAMPLE_RATE,
                                                                         ao_sample_rate=self.machine_config.AO_SAMPLE_RATE,
+                                                                        shutter_port=self.machine_config.SHUTTER_PORT, 
+                                                                        stage_port=self.machine_config.STAGE_PORT, 
+                                                                        stage_baudrate=self.machine_config.STAGE_BAUDRATE)
+        else:
+            self.aio=scanner_control.SyncAnalogIORecorder(self.machine_config.AI_CHANNELS,
+                                                                        self.machine_config.AO_CHANNELS,
+                                                                        self.daq_logfile,
+                                                                        timeout=self.machine_config.DAQ_TIMEOUT,
+                                                                        ai_sample_rate=self.machine_config.AI_SAMPLE_RATE,
+                                                                        ao_sample_rate=self.machine_config.AO_SAMPLE_RATE, 
                                                                         shutter_port=self.machine_config.SHUTTER_PORT)
         self.aio.start()
         self.cam_logfile=self.logger.filename.replace('2p', '2p_cam')
@@ -329,13 +334,12 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                                 self.cam_logfile,
                                 self.machine_config.IR_CAMERA_ROI)
         self.camera.start()
-        try:
-            self.stage=stage_control.SutterStage(self.machine_config.STAGE_PORT,  self.machine_config.STAGE_BAUDRATE)
-            self.stage_z=self.stage.z
-        except OSError:
-            print('No Stage')
-            
-        
+        if not self.machine_config.STAGE_IN_SCANNER_PROCESS:
+            try:
+                self.stage=stage_control.SutterStage(self.machine_config.STAGE_PORT,  self.machine_config.STAGE_BAUDRATE)
+                self.stage_z=self.stage.z
+            except OSError:
+                print('No Stage')
         
     def _close_hardware(self):
         self.aio.terminate()
@@ -365,7 +369,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             self.p.show()
     
 ######### Two Photon ###########
-    def prepare_2p(self, nframes=None):
+    def prepare_2p(self, nframes=None, zvalues=None):
         t0=time.time()
         print(0)
         if self.twop_running:
@@ -405,7 +409,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             nf=nframes+scanner_control.NFRAMES_SKIP_AT_SCANNING_START
         self.aio.start_(self.waveform,self.filename,{'boundaries': self.boundaries, 'channels':channels,'metadata': self.format_settings()},\
                         offset=self.settings['params/Advanced/2p Shift'], \
-                        nframes=nf)
+                        nframes=nf, zvalues=zvalues)
         self.twop_running=True
         
         if not self.settings['params/Time lapse/Enable']:
@@ -482,7 +486,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.stop_action(snapshot=True)
         return numpy.array(frames)
         
-    def record_action(self, nframes=None):
+    def record_action(self, nframes=None, zvalues=None):
         try:
             tag='2p_'+self.settings['params/Name']
             if self.twop_running:
@@ -498,7 +502,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             setattr(h, 'machine_config', self.machine_config.todict())
             h.save(['software_environment', 'machine_config'])
             h.close()
-            self.prepare_2p(nframes=nframes)
+            self.prepare_2p(nframes=nframes, zvalues=zvalues)
             self.printc('2p recording started, saving data to {0}'.format(self.filename))
         except:
             self.printc(traceback.format_exc())
@@ -967,7 +971,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.printc(f"Z stack finished, data saved to {self.zstack_filename}")
         
     def read_z_action(self):
-        self.printc(f'z position: {self.stage.z} ustep')
+        self.printc(f'z position: {self.aio.read_z()} ustep')
         
     def set_origin_action(self):
         reply = QtGui.QMessageBox.question(self, 'Confirm:', 'Set stage origin?', QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
@@ -978,7 +982,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             self.stage.check_response()
         except:
             self.printc(traceback.format_exc())
-        self.printc(f'z Origin set: {self.stage.z} ustep')
+        self.aio.set_origin()
+        self.printc(f'z Origin set: {self.aio.read_z()} ustep')
         
     def format_settings(self):
         '''

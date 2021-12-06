@@ -187,11 +187,11 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
     def start(self):
         instrument.InstrumentProcess.start(self)
         
-    def start_(self, waveform, filename, data_format,offset=0, nframes=None):
+    def start_(self, waveform, filename, data_format,offset=0, nframes=None, zvalues=[]):
         """
         data_format: dictionary containing channels to be saved and boundaries
         """
-        self.queues['command'].put(('start', waveform, filename, data_format, offset, nframes))
+        self.queues['command'].put(('start', waveform, filename, data_format, offset, nframes, zvalues))
         
     def stop(self):
         self.queues['command'].put(('stop',))
@@ -264,9 +264,10 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
             self.running=False
             tlast=time.time()
             self.frame_counter=0
+            self.printl(self.kwargs)
             if 'stage_port' in self.kwargs:
                 self.stage=stage_control.SutterStage(self.kwargs['stage_port'],  self.kwargs['stage_baudrate'])
-            
+                self.stage.setnowait=True#Stage does not block at setting stage position
             while True:
                 now=time.time()
                 if now-tlast>10:
@@ -281,6 +282,14 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                         self.data_format=cmd[3]
                         self.offset=cmd[4]
                         self.nframes=cmd[5]
+                        self.printl(cmd[6])
+                        if len(cmd)>6:
+                            self.zvalues=cmd[6]
+                            if cmd[6] is None:
+                                self.zvalues=[]
+                            self.nframes=len(self.zvalues)+NFRAMES_SKIP_AT_SCANNING_START
+                        else:
+                            self.zvalues=[]
                         self.binning_factor=int(self.kwargs['ai_sample_rate']/self.kwargs['ao_sample_rate'])
                         if filename is not None:
                             self.fh=tables.open_file(filename,'a')
@@ -297,6 +306,8 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                             if 'metadata' in self.data_format:
                                 for k, v in self.data_format['metadata'].items():
                                     setattr(self.fh.root.twopdata.attrs,k,v)
+                                if len(self.zvalues)>0:
+                                    setattr(self.fh.root.twopdata.attrs,'zvalues',self.zvalues)
                         else:
                             if hasattr(self, 'data_handle'):
                                 del self.data_handle
@@ -320,7 +331,9 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                         self.printl('Terminating')
                         break
                     elif cmd[0]=='read_z':
-                        self.queues['stage'].put(self.stage.z)
+                        z=self.stage.z
+                        self.printl(z)
+                        self.queues['stage'].put(z)
                     elif cmd[0]=='set_z':
                         self.stage.z=cmd[1]
                     elif cmd[0]=='set_origin':
@@ -356,6 +369,20 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                             self.queues['rawimage'].put(self.rawimage)
                             if data_chunk[:2].min()<0:
                                 self.queues['response'].put(f'Negative voltate is detected: {data_chunk[:2].min()} V on PMT output, please adjust offset')
+                        if self.zvalues!=[]:
+                            previ=self.frame_counter-NFRAMES_SKIP_AT_SCANNING_START-1
+                            acti=self.frame_counter-NFRAMES_SKIP_AT_SCANNING_START
+                            if len(self.zvalues)>acti:
+                                actual_zvalue=self.zvalues[acti]
+                                if previ>0:
+                                    prevz=self.zvalues[previ]
+                                    setstage=actual_zvalue!=prevz
+                                else:
+                                    setstage=True
+                                if setstage:
+                                    self.stage.z=actual_zvalue
+                                    self.queues['response'].put(f'Stage is set to: {actual_zvalue}')
+                                    self.printl(f'Stage is set to: {actual_zvalue}')
                     if self.nframes is not None and self.nframes>0 and self.nframes<self.frame_counter:
                         self.stop_recording()
                         self.queues['response'].put('nframes recorded')
@@ -383,6 +410,9 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
             self.printl(f'Saved to {tifffn}')
             self.printl('Closing file')
         self.printl(f'Recorded {self.frame_counter} frames,  sent {self.ct} frames to GUI,  {self.cct} frames saved')
+        if self.zvalues!=[]:
+            self.stage.z=self.zvalues[0]
+            self.queues['response'].put('Stage set back to initial position')
         self.running=False
         
     def set_origin(self):
@@ -393,7 +423,13 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
         
     def read_z(self):
         self.queues['command'].put(('read_z',))
-        time.sleep(1)
+        t0=time.time()
+        while True:
+            time.sleep(0.5)
+            if not self.queues['stage'].empty():
+                break
+            if time.time()-t0>10:
+                break
         if not self.queues['stage'].empty():
             return self.queues['stage'].get()
         

@@ -365,6 +365,7 @@ class SutterStage(serial.Serial):
             #self.write(b'b\r')#Set to relative mode
             self.write(b'a\r')#Set to absolue mode
             self.check_response()
+            self.setnowait=False
         except:
             import pdb
             pdb.set_trace()
@@ -402,7 +403,12 @@ class SutterStage(serial.Serial):
     def z(self, value):#self.write(b'm'+struct.pack('<iii', 0, 0, 0)+b'\r');self.read(1)
         cmd=struct.pack('<iii', 0, 0, int(value))
         self.write(b'm'+cmd+b'\r')
-        self.check_response()
+        if not self.setnowait:
+            self.check_response()
+        else:
+            if self.in_waiting>0:
+                self.read(self.in_waiting)
+        
 
 class MotorTestConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):
