@@ -366,6 +366,7 @@ class SutterStage(serial.Serial):
             self.write(b'a\r')#Set to absolue mode
             self.check_response()
             self.setnowait=False
+            initial=self.z
         except:
             import pdb
             pdb.set_trace()
@@ -402,7 +403,12 @@ class SutterStage(serial.Serial):
     @z.setter
     def z(self, value):#self.write(b'm'+struct.pack('<iii', 0, 0, 0)+b'\r');self.read(1)
         cmd=struct.pack('<iii', 0, 0, int(value))
+        deltaz=abs(value-self.xyz[2])
+        #print(deltaz)
+        if deltaz>10000:
+            raise ValueError(f'too big movement: {deltaz}')
         self.write(b'm'+cmd+b'\r')
+        self.xyz=(self.xyz[0], self.xyz[1], value)
         if not self.setnowait:
             self.check_response()
         else:
@@ -559,7 +565,7 @@ if test_mode:
                 
 class TestSutter(unittest.TestCase):
     def test(self):
-        stage = SutterStage("COM10", 9600)
+        stage = SutterStage("COM4", 9600)
         print(stage.z)
         stage.z=3000
         self.assertEqual(stage.z, 3000)

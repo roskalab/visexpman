@@ -518,7 +518,7 @@ class Screen(object):
     def draw_bitcode(self, cnt_value):
         START_COL = -(self.screen_resolution['col']/2)
         START_ROW =   (self.screen_resolution['row']/2)-0
-        SIZE = {'col':1 , 'row':1}
+        SIZE = {'col':10 , 'row':10}
         center  = {'col':0 , 'row':0}
         for bit in range(8):
             if((cnt_value & (1<<bit))):
@@ -536,7 +536,7 @@ class Screen(object):
         pass
         
     def before_flip(self):
-        self.draw_bitcode(self.frame_counter%255)
+        self.draw_bitcode(self.frame_counter%256)
         self.frame_counter = self.frame_counter + 1
         
     def after_flip(self):

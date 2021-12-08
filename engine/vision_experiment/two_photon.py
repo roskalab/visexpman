@@ -432,6 +432,9 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         print(3)
         self.printc(f'Debug: {t3-t2},  {t2-t1},  {t1-t0}')
         
+    def test(self):
+        self.record_action(zvalues=numpy.arange(20))
+        
     def timelapse_handler(self):
         try:
             if self.settings['params/Time lapse/Enable']:
@@ -977,11 +980,6 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         reply = QtGui.QMessageBox.question(self, 'Confirm:', 'Set stage origin?', QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
         if not reply:
             return
-        self.stage.write(b'o\r')
-        try:
-            self.stage.check_response()
-        except:
-            self.printc(traceback.format_exc())
         self.aio.set_origin()
         self.printc(f'z Origin set: {self.aio.read_z()} ustep')
         

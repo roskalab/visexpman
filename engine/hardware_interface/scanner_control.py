@@ -309,6 +309,7 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                                 if len(self.zvalues)>0:
                                     setattr(self.fh.root.twopdata.attrs,'zvalues',self.zvalues)
                         else:
+                            self.nframes=None#if filename is not provided infinite recording is triggered
                             if hasattr(self, 'data_handle'):
                                 del self.data_handle
                         frame_rate= self.kwargs['ao_sample_rate']/waveform.shape[1]

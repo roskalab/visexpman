@@ -264,16 +264,14 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         elif duration == -1.0:
             i = 0
             while not self.abort:
-                if i == 1:
-                    self.screen.clear_screen(color = color_to_set)
+                self.screen.clear_screen(color = color_to_set)
                 if flip:
                     self._flip(frame_timing_pulse = True, count = count)
                 i += 1
         else:
             nframes = int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)
             for i in range(nframes):
-                if i == 1:
-                    self.screen.clear_screen(color = color_to_set)
+                self.screen.clear_screen(color = color_to_set)
                 if flip:
                     self._flip(frame_timing_pulse = frame_timing_pulse, count = count)
                 if self.abort:
