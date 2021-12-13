@@ -208,7 +208,7 @@ class VisexpmanMainWindow(Qt.QMainWindow):
         print('close event')
         self.exit_action()
 
-class SimpleAppWindow(Qt.QMainWindow):
+class SimpleGuiWindow(Qt.QMainWindow):
     def __init__(self):
         if QtCore.QCoreApplication.instance() is None:
             self.qt_app = Qt.QApplication([])
@@ -314,6 +314,11 @@ class SimpleAppWindow(Qt.QMainWindow):
             self.pt=Plot(None)
             self.pt.update_curves(x, y)
             self.pt.show()
+            
+class SimpleAppWindow(SimpleGuiWindow):
+    '''
+    Deprecated
+    '''
 
 class Progressbar(QtGui.QWidget):
     def __init__(self, maxtime, name = '', autoclose = False, timer=False):

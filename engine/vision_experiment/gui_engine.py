@@ -632,7 +632,9 @@ class ExperimentHandler(object):
                         os.remove(src)
                 elif self.machine_config.FILE_TRIGGER_EXTENSION=='.msrd':
                     files=[f for f in fileop.listdir(os.path.dirname(self.current_experiment_parameters['mcd_file'])) if os.path.splitext(self.current_experiment_parameters['mcd_file'])[0] in f]
-                    dstfiles=[os.path.splitext(self.current_experiment_parameters['outfilename'])[0]+os.path.splitext(f)[1] for f in files]
+                    msrd_num=os.path.splitext(os.path.basename(self.current_experiment_parameters['mcd_file']).split("_")[1])[0]
+                    dstfiles=[os.path.splitext(self.current_experiment_parameters['outfilename'])[0].replace('data_',f'data_{msrd_num}_')+os.path.splitext(f)[1] for f in files]
+                    self.dstfiles=dstfiles
                     try:
                         time.sleep(10)
                         for i in range(len(files)):
@@ -2363,6 +2365,9 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
                         break
                 else:
                     time.sleep(self.loop_wait)
+                    continue
+                if not hasattr(msg,'keys'):
+                    self.printc(msg)
                     continue
                 #parse message
                 if 'data' in msg:#expected format: {'data': value, 'path': gui path, 'name': name}
