@@ -209,12 +209,12 @@ class VisexpmanMainWindow(Qt.QMainWindow):
         self.exit_action()
 
 class SimpleGuiWindow(Qt.QMainWindow):
-    def __init__(self):
+    def __init__(self, logfolder=tempfile.gettempdir()):
         if QtCore.QCoreApplication.instance() is None:
             self.qt_app = Qt.QApplication([])
         Qt.QMainWindow.__init__(self)
         if not hasattr(self, 'logfile'):
-            self.logfile = os.path.join(tempfile.gettempdir(), 'log_{0}.txt'.format(utils.timestamp2ymdhms(time.time(), filename=True)))
+            self.logfile = os.path.join(logfolder, 'log_{0}.txt'.format(utils.timestamp2ymdhms(time.time(), filename=True)))
         logging.basicConfig(filename= self.logfile,
                     format='%(asctime)s %(levelname)s\t%(message)s',
                     level=logging.INFO)
