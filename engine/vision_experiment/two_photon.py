@@ -369,6 +369,19 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             self.p.show()
     
 ######### Two Photon ###########
+    def get_fps(self):
+        waveform_x, waveform_y, projector_control, frame_timing, self.boundaries=\
+                    self.waveform_generator.generate(int(self.settings['params/Scan Height']), \
+                                                                    int(self.settings['params/Scan Width']),\
+                                                                    self.settings['params/Resolution'],\
+                                                                    self.settings['params/Advanced/X Return Time'],\
+                                                                    self.settings['params/Advanced/Y Return Time'],\
+                                                                    0,\
+                                                                    self.settings['params/Advanced/Projector Control Phase']*1e-6,)
+        fps=round(self.machine_config.AO_SAMPLE_RATE/waveform_x.shape[0],1)
+        return fps
+
+
     def prepare_2p(self, nframes=None, zvalues=None):
         t0=time.time()
         print(0)
@@ -399,12 +412,12 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             waveform_x=waveform_x*0+self.settings['params/Advanced/X scanner voltage']
             waveform_y=waveform_y*0+self.settings['params/Advanced/Y scanner voltage']
             
-        self.waveform=numpy.array([waveform_x,  waveform_y, projector_control, frame_timing])
+        self.waveform=numpy.array([waveform_x, waveform_y, projector_control, frame_timing])
         self.dwell_time=(1000/self.machine_config.AI_SAMPLE_RATE)/numpy.diff(self.waveform[0, self.boundaries[0]:self.boundaries[1]]).mean()
         
         channels=list(map(int, [self.settings['params/Show Top'], self.settings['params/Show Side']]))
         if nframes==0 or nframes is None:
-            nf=0
+            nf=None
         else:
             nf=nframes+scanner_control.NFRAMES_SKIP_AT_SCANNING_START
         self.aio.start_(self.waveform,self.filename,{'boundaries': self.boundaries, 'channels':channels,'metadata': self.format_settings()},\
@@ -433,7 +446,26 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.printc(f'Debug: {t3-t2},  {t2-t1},  {t1-t0}')
         
     def test(self):
-        self.record_action(zvalues=numpy.arange(20))
+        zvalues=numpy.concatenate((numpy.zeros(30), numpy.ones(30)*1000))
+        self.record_action(zvalues=zvalues)
+        
+    def testzstep(self, step):
+        if abs(step)>10000: return
+        zvalues=numpy.concatenate((numpy.zeros(30), numpy.ones(30)*step))
+        self.record_action(zvalues=zvalues)
+        
+    def calcztransient(self):
+        h=tables.open_file(self.filename,'r')
+        data=h.root.twopdata.read()[:-1, :, :, 0]
+        zvalues=h.root.twopdata.attrs.zvalues
+        from pylab import plot, show
+        img=data.std(axis=1).std(axis=1)
+        img=img/img.max()
+        t=numpy.arange(img.shape[0])/self.twop_fps
+        h.close()
+        plot(t, zvalues/zvalues.max());plot(t, img);show()
+        
+        
         
     def timelapse_handler(self):
         try:
@@ -499,12 +531,6 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             self.filename=os.path.join(self.data_folder, os.path.basename(self.filename))
             if self.filename is  None:
                 raise ValueError()
-            import hdf5io
-            h=hdf5io.Hdf5io(self.filename)    
-            setattr(h, 'software_environment',experiment_data.pack_software_environment())
-            setattr(h, 'machine_config', self.machine_config.todict())
-            h.save(['software_environment', 'machine_config'])
-            h.close()
             self.prepare_2p(nframes=nframes, zvalues=zvalues)
             self.printc('2p recording started, saving data to {0}'.format(self.filename))
         except:
@@ -905,6 +931,12 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             e=self.settings['params/Z Stack/End']
             st=self.settings['params/Z Stack/Step']
             self.depths=numpy.linspace(s, e, int(abs(s-e)/st+1))
+            steptime=1 if st<1000 else st/1000
+            stepsamples=int(numpy.ceil(self.get_fps()*steptime))
+            self.printc(f"Z stack in {', '.join(map(str,self.depths))}, stepsamples: {stepsamples}")
+            self.zvalues=numpy.repeat(self.depths, self.settings['params/Z Stack/Samples per depth']+stepsamples)
+            self.record_action(zvalues=self.zvalues)
+            return
             ext=self.settings['params/Z Stack/File Format']
             self.printc(f"Z stack in {', '.join(map(str,self.depths))}, saving to {fileop.replace_extension(self.zstack_filename,ext)}")
             self.depth_index=0
@@ -990,6 +1022,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         settings_out={}
         for k, v in self.settings.items():
             settings_out[k.replace('/', '_').replace(' ', '_')]=v
+        settings_out.update(self.machine_config.todict())
         return settings_out
         
     def settings2attr(self, ref):

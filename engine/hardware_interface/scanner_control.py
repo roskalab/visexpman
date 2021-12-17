@@ -275,21 +275,20 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                     tlast=now
                 if not self.queues['command'].empty():
                     cmd=self.queues['command'].get()
-                    self.printl(cmd)
+                    self.printl(cmd[:3])
+                    self.printl(cmd[4:])
                     if cmd[0]=='start':
                         waveform=cmd[1]
                         filename=cmd[2]
                         self.data_format=cmd[3]
                         self.offset=cmd[4]
                         self.nframes=cmd[5]
-                        self.printl(cmd[6])
-                        if len(cmd)>6:
-                            self.zvalues=cmd[6]
-                            if cmd[6] is None:
-                                self.zvalues=[]
+                        self.zvalues=cmd[6]
+                        if self.nframes is None and self.zvalues is not None:
                             self.nframes=len(self.zvalues)+NFRAMES_SKIP_AT_SCANNING_START
-                        else:
-                            self.zvalues=[]
+                        elif self.nframes is not None and self.zvalues is None:
+                            self.nframes+=NFRAMES_SKIP_AT_SCANNING_START
+                        self.printl(f'self.nframes: {self.nframes}')
                         self.binning_factor=int(self.kwargs['ai_sample_rate']/self.kwargs['ao_sample_rate'])
                         if filename is not None:
                             self.fh=tables.open_file(filename,'a')
@@ -306,7 +305,7 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                             if 'metadata' in self.data_format:
                                 for k, v in self.data_format['metadata'].items():
                                     setattr(self.fh.root.twopdata.attrs,k,v)
-                                if len(self.zvalues)>0:
+                                if self.zvalues is not None and len(self.zvalues)>0:
                                     setattr(self.fh.root.twopdata.attrs,'zvalues',self.zvalues)
                         else:
                             self.nframes=None#if filename is not provided infinite recording is triggered
@@ -370,7 +369,7 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                             self.queues['rawimage'].put(self.rawimage)
                             if data_chunk[:2].min()<0:
                                 self.queues['response'].put(f'Negative voltate is detected: {data_chunk[:2].min()} V on PMT output, please adjust offset')
-                        if self.zvalues!=[]:
+                        if self.zvalues!=[] and self.zvalues is not None:
                             previ=self.frame_counter-NFRAMES_SKIP_AT_SCANNING_START-1
                             acti=self.frame_counter-NFRAMES_SKIP_AT_SCANNING_START
                             if len(self.zvalues)>acti:
@@ -411,7 +410,7 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
             self.printl(f'Saved to {tifffn}')
             self.printl('Closing file')
         self.printl(f'Recorded {self.frame_counter} frames,  sent {self.ct} frames to GUI,  {self.cct} frames saved')
-        if self.zvalues!=[]:
+        if self.zvalues!=[] and self.zvalues is not None:
             self.stage.z=self.zvalues[0]
             self.queues['response'].put('Stage set back to initial position')
         self.running=False
