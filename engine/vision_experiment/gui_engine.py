@@ -281,7 +281,7 @@ class ExperimentHandler(object):
                     pulses=wf_file_content[vn]
                     epochs=[]
                     for i in range(pulses.shape[0]):
-                        epochs.append(pulses[i]/scale*1e3)
+                        epochs.append(pulses[i]/scale*1e3)#Command signal: nA or V input
                         epochs.append(numpy.zeros(int(fsample*self.guidata.read('Wait time')*1e-3)))
                     experiment_parameters['elphys_waveform']=numpy.concatenate(epochs)
                     
@@ -563,6 +563,7 @@ class ExperimentHandler(object):
                 
             elif self.machine_config.PLATFORM not in ['erg'] and 'elphys_waveform' not in experiment_parameters and 'ELPHYS_STIMULUS' not in self.stimulus_config:
                 self.send({'function': 'start_stimulus','args':[experiment_parameters]},'stim')
+        self.current_experiment_parameters=experiment_parameters
         if 'elphys_waveform' in experiment_parameters:
             self.printc('Start elphys pulses')
             self.ao, d=daq.set_waveform_start(self.machine_config.ELPHYS_COMMAND_CHANNEL,experiment_parameters['elphys_waveform'][None],self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
@@ -1254,8 +1255,9 @@ class Analysis(object):
         else:
             self.to_gui.put({'plot_title': os.path.dirname(self.filename)+'<br>'+os.path.basename(self.filename)})
             sync=self.datafile.findvar("sync")
-            self.sample_rate=10000
-            self.printc('Warning: read sample rate from file')
+            if not hasattr(self, 'sample_rate'):
+                self.sample_rate=self.guidata.read('Sample Rate')
+                self.printc('Warning: sample rate must be read from datafile!!!!')
             self._plot_elphys(sync,  full_view=True)
         if self.machine_config.PLATFORM not in  ['resonant',  "elphys", 'erg']:#Do not load imaging data
             self.datafile.get_image(image_type=self.guidata.read('3d to 2d Image Function'),motion_correction=self.guidata.read('Motion Correction'))
@@ -1277,7 +1279,10 @@ class Analysis(object):
                 msg='In {0} stimulus sync signal or imaging sync signal was not recorded'.format(self.filename)
                 self.notify('Error', msg)
                 raise RuntimeError(msg)
-        self.experiment_name= self.datafile.findvar('parameters')['stimclass']
+        try:
+            self.experiment_name= self.datafile.findvar('parameters')['stimclass']
+        except:
+            self.printc('Warning: stimclass cannot be read')
         if self.machine_config.PLATFORM not in ['resonant',  "elphys", 'erg']:
             if self.machine_config.PLATFORM != 'ao_cortical':
                 self._recalculate_background()
