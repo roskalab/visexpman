@@ -242,6 +242,8 @@ class SimpleGuiWindow(Qt.QMainWindow):
         '''
                     
     def logfile2screen(self):
+        if not os.path.exists(self.logfile):
+            return
         newlogtext=fileop.read_text_file(self.logfile)
         if len(newlogtext)!=len(self.logtext):
             self.logtext=newlogtext
@@ -254,7 +256,8 @@ class SimpleGuiWindow(Qt.QMainWindow):
 
     def log(self, msg, loglevel='info'):
         getattr(logging, loglevel)(str(msg))
-        self.logw.update(fileop.read_text_file(self.logfile))
+        if os.path.exists(self.logfile):
+            self.logw.update(fileop.read_text_file(self.logfile))
         
     def catch_error_message(self):
         if not error_messages.empty():

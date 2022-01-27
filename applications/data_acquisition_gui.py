@@ -17,9 +17,43 @@ class DaqGui(gui.SimpleGuiWindow):
         self.params.params.sigTreeStateChanged.connect(self.parameter_changed)#Function called when any setting modified by the user
         self.add_dockwidget(self.params, 'Settings', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea)
         
+        toolbar_buttons=['start', 'stop', 'exit']
+        self.toolbar = gui.ToolBar(self, toolbar_buttons)
+        self.addToolBar(self.toolbar)
+        
+        import PyQt5.QtGui as QtGui
+        self.statusbar=self.statusBar()
+        self.statusbar.msg=QtGui.QLabel('', self)
+        self.statusbar.addPermanentWidget(self.statusbar.msg)
+        self.statusbar.status_msg=QtGui.QLabel('', self)
+        self.statusbar.addPermanentWidget(self.statusbar.status_msg)
+        self.set_status('Idle','gray')
+        
+    def set_status(self,state, color):
+        self.statusbar.status_msg.setStyleSheet(f'background:{color};')
+        self.statusbar.status_msg.setText(state)
+        QtCore.QCoreApplication.instance().processEvents()
+        
     def parameter_changed(self):
         setting_values=self.params.get_parameter_tree(return_dict=True)#Grab all values from Settings tab and organize to a dictionary
         self.log(setting_values)#Display setting values on log widget and also save to logfile
+        
+    def start_action(self):
+        pass
+        
+    def stop_action(self):
+        pass
+        
+    def exit_action(self):
+        self.close()
+        
+    def plot_traces(self, sig,channel_names,fsample):
+        import numpy
+        x=[numpy.arange(sig.shape[1])/fsample]*sig.shape[0]
+        y=[sig[i] for i in range(sig.shape[0])]
+        from visexpman import colors
+        pp=[{'name': (str(channel_names[i])), 'pen':(numpy.array(colors.get_color(i))*255).tolist()} for i in range(len(x))]
+        self.plot.update_curves(x, y, plotparams=pp)
         
 if __name__=='__main__':
     gui=DaqGui(logfolder=r'c:\tmp')

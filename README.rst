@@ -135,12 +135,67 @@ parameter_changed method is for processing changes at Setting values. Calling se
     if __name__=='__main__':
         gui=DaqGui(logfolder=r'c:\tmp')
     
-3. toolbar
-4. statusbar
-5. display results
-6. self.log(), logfile location
-6. save to h5 file
-7. daq control
+Adding start, stop and exit buttons to toolbar:
+
+.. code:: python
+
+    def init_gui(self):
+        ...
+        toolbar_buttons=['start', 'stop', 'exit']
+        self.toolbar = gui.ToolBar(self, toolbar_buttons)
+        self.addToolBar(self.toolbar)
+        
+
+Callback functions assigned to toolbar buttons
+        
+.. code:: python
+    
+    def start_action(self):
+        pass
+        
+    def stop_action(self):
+        pass
+        
+    def exit_action(self):
+        self.close()
+    
+Also add statusbar for displaying the acquisition status to init_gui method:
+
+.. code:: python
+
+        import PyQt5.QtGui as QtGui
+        self.statusbar=self.statusBar()
+        self.statusbar.msg=QtGui.QLabel('', self)
+        self.statusbar.addPermanentWidget(self.statusbar.msg)
+        self.statusbar.status_msg=QtGui.QLabel('', self)
+        self.statusbar.addPermanentWidget(self.statusbar.status_msg)
+        self.set_status('Idle','gray')
+    
+The set_status function is available for changing acquisition status:
+
+.. code:: python
+
+    def set_status(self,state, color):
+        self.statusbar.status_msg.setStyleSheet(f'background:{color};')
+        self.statusbar.status_msg.setText(state)
+        QtCore.QCoreApplication.instance().processEvents()
+        
+Plotter function for displaying recorded traces
+
+.. code:: python
+
+    def plot_traces(self, sig,channel_names,fsample):
+        import numpy
+        x=[numpy.arange(sig.shape[1])/fsample]*sig.shape[0]
+        y=[sig[i] for i in range(sig.shape[0])]
+        from visexpman import colors
+        pp=[{'name': (str(channel_names[i])), 'pen':(numpy.array(colors.get_color(i))*255).tolist()} for i in range(len(x))]
+        self.plot.update_curves(x, y, plotparams=pp)
+
+6. daq control        
+7. save to h5 file
+8. self.log(), logfile location
+
 
 Bells and whistles:
 8. icon

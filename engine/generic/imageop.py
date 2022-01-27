@@ -1,12 +1,23 @@
 '''
 Image related operations
 '''
-import unittest,os
+import unittest,os, numpy
 from PIL import Image
 from visexpman.engine.generic import fileop
 
+def save(fn, img):
+    '''
+    Save numpy array as image, pixel values shall be in 0..1 range. grayscale or rgb numpy arrays supported
+    '''
+    Image.fromarray(numpy.cast['uint8'](img*255)).save(fn)
+    
+def torgb(img, channel=1):
+    imgout=numpy.zeros((img.shape[0], img.shape[1], 3), dtype=img.dtype)
+    imgout[:, :, channel]=img
+    return imgout
+
 def rotate_folder(src, dst, rot):
-    print src
+    print(src)
     files=fileop.find_files_and_folders(src)[1]
     for f in files:
         img=Image.open(f)
