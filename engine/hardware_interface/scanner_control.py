@@ -385,6 +385,7 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                                     self.printl(f'Stage is set to: {actual_zvalue}')
                     if self.nframes is not None and self.nframes>0 and self.nframes<self.frame_counter:
                         self.stop_recording()
+                        self.printl('nframes recorded')
                         self.queues['response'].put('nframes recorded')
                 time.sleep(0.02)
             self.printl('Process done')

@@ -118,9 +118,9 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.read_image_timer.start(1000.0 / self.machine_config.IMAGE_DISPLAY_RATE)
         self.read_image_timer.timeout.connect(self.read_image)
         
-#        self.background_process_timer=QtCore.QTimer()
-#        self.background_process_timer.start(1000)
-#        self.background_process_timer.timeout.connect(self.background_process)
+        self.background_process_timer=QtCore.QTimer()
+        self.background_process_timer.start(1000)
+        self.background_process_timer.timeout.connect(self.background_process)
         
         self.queues = {'command': multiprocessing.Queue(), 
                             'response': multiprocessing.Queue(), 
@@ -257,18 +257,19 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             if newparams['params/IR Exposure'] != self.settings['params/IR Exposure']:
                 self.camera.set(exposure=int(newparams['params/IR Exposure']*1000))
                 self.printc('Exposure set to {0}'.format(newparams['params/IR Exposure']))
-            if newparams['params/IR Gain'] != self.settings['params/IR Gain']:
+            elif newparams['params/IR Gain'] != self.settings['params/IR Gain']:
                 self.camera.set(gain=int(newparams['params/IR Gain']))
                 self.printc('Gain set to {0}'.format(newparams['params/IR Gain']))
-            if newparams['params/Time lapse/Enable'] != self.settings['params/Time lapse/Enable']:
+            elif newparams['params/Time lapse/Enable'] != self.settings['params/Time lapse/Enable']:
                 if newparams['params/Time lapse/Enable']:
                     self.statusbar.twop_status.setText('2P time lapse')
+                    self.last_scan=time.time()-self.settings['params/Time lapse/Interval']
                     self.statusbar.twop_status.setStyleSheet('background:red;')
                 else:
                     self.statusbar.twop_status.setText('Ready')
                     self.statusbar.twop_status.setStyleSheet('background:gray;')
             #2p image size changed
-            if newparams['params/Scan Width']!=self.settings['params/Scan Width'] or\
+            elif newparams['params/Scan Width']!=self.settings['params/Scan Width'] or\
                 newparams['params/Scan Height']!=self.settings['params/Scan Height'] or\
                 newparams['params/Resolution']!=self.settings['params/Resolution']:
                     self.printc("2p img settings changed")
@@ -472,9 +473,16 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             if self.settings['params/Time lapse/Enable']:
                 now=time.time()
                 if not hasattr(self,  'last_scan'):
-                    self.last_scan=now
+                    self.last_scan=now-self.settings['params/Time lapse/Interval']#Ensure that z stack is triggered at the very beginning of the timelapse
                 dt=now-self.last_scan
-                self.printc(f'Time left since last z stack trigger: {round(dt)} s')
+                if not hasattr(self,'dtct'):
+                    self.dtct=0
+                if self.dtct%100==0:
+                    self.printc(f'Time left since last z stack trigger: {round(dt)} s')
+                self.dtct+=1
+                if dt>3600 and self.twop_running:
+                    self.printc(f'2p timeout {dt},  {self.twop_running}')
+                    self.stop_action()
                 self.parameter_changed()
                 if (dt==0 or dt>self.settings['params/Time lapse/Interval']) and not self.twop_running:
                     import psutil
@@ -953,7 +961,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         except:
             self.printc(traceback.format_exc())
         
-    def z_stack_runner(self):
+    def z_stack_runner(self):#OBSOLETE?
         if self.z_stack_running:
             try:
                 if self.z_stack_state=='setz':
@@ -1034,7 +1042,15 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             for f in [self.cam_logfile,self.daq_logfile]:
                 t0=time.time()
                 if os.path.exists(f):
-                    log=fileop.read_text_file(f)
+                    maxsize=int(1e5)
+                    if os.path.getsize(f)>maxsize:
+                        fp=open(f, 'rt')
+                        offset=int(os.path.getsize(f)-maxsize)
+                        fp.seek(offset)
+                        log=fp.read(maxsize)
+                        fp.close()
+                    else:
+                        log=fileop.read_text_file(f)
                 else:
                     log=''
                 dt=time.time()-t0
@@ -1055,7 +1071,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             if not hasattr(self,  'bgp_tlast'):
                 self.bgp_tlast=now
             dt=now-self.bgp_tlast
-            if dt>1:
+            if dt>5:
                 self.bgp_tlast=now
             else:
                 return
