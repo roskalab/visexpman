@@ -294,6 +294,10 @@ To make the GUI look more professional an icon and a window title is added in de
         gui.set_win_icon()
         #Set name of main window
         self.setWindowTitle('Data Acquisition GUI')
+        
+After running a recording the GUI should look like this:
+
+.. image:: https://raw.githubusercontent.com/roskalab/visexpman/zdev/images/acquisition_complete.png
 
 Error handling
 11. live display
