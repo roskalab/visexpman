@@ -111,6 +111,23 @@ def find_biggest_object(binary_image):#Works also for 3d image
     biggest_object=numpy.where(labels==ii,True,False)
     return biggest_object
     
+def remove_side_objects(binary_image):
+    '''
+    Remove objects touching image side
+    '''
+    if binary_image.sum()==0:
+        return binary_image
+    labels, n=scipy.ndimage.label(binary_image)
+    labels2keep=[ni for ni in range(1, n+1) if not is_side_object(numpy.where(labels==ni, 1, 0))]
+    out=numpy.zeros_like(binary_image)
+    for l in labels2keep:
+        x, y=numpy.where(labels==l)
+        out[x, y]=1
+    return out
+    
+def is_side_object(binary_image):
+    return binary_image[0, :].max()>0 or binary_image[-1, :].max()>0 or binary_image[:, 0].max()>0 or binary_image[:, -1].max()>0
+    
 def object_size(binary_image):
     '''
     Determines object size by erosion

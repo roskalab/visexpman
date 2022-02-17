@@ -256,6 +256,7 @@ class SimpleGuiWindow(Qt.QMainWindow):
 
     def log(self, msg, loglevel='info'):
         getattr(logging, loglevel)(str(msg))
+        print(f'{loglevel}: {msg}')
         if os.path.exists(self.logfile):
             self.logw.update(fileop.read_text_file(self.logfile))
         
