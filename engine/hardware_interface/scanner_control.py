@@ -382,7 +382,7 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                                 if setstage:
                                     self.stage.z=actual_zvalue
                                     self.queues['response'].put(f'Stage is set to: {actual_zvalue}')
-                                    self.printl(f'Stage is set to: {actual_zvalue}')
+                                    self.printl(f'Stage set to {actual_zvalue}')
                     if self.nframes is not None and self.nframes>0 and self.nframes<self.frame_counter:
                         self.stop_recording()
                         self.printl('nframes recorded')
@@ -399,7 +399,11 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
     def stop_recording(self):
         self.printl("Stop recording")
         self.close_shutter()
-        readout=daq.SyncAnalogIO.stop(self)
+        #readout=daq.SyncAnalogIO.stop(self)
+        readout=None
+        self.analog_output.StopTask()
+        self.analog_input.StopTask()
+        self.printl("DAQ terminated")
         if hasattr(self,'data_handle'):
             if readout is not None and len(readout.shape)==2:#In some cases the last readut from daq has an extra dimension. Reason unknown
                 self.data2file(readout)
@@ -410,7 +414,7 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
             tifffile.imwrite(tifffn,data)
             self.printl(f'Saved to {tifffn}')
             self.printl('Closing file')
-        self.printl(f'Recorded {self.frame_counter} frames,  sent {self.ct} frames to GUI,  {self.cct} frames saved')
+        self.printl(f'Recorded {self.frame_counter} frames, sent {self.ct} frames to GUI, {self.cct} frames saved')
         if self.zvalues!=[] and self.zvalues is not None:
             self.stage.z=self.zvalues[0]
             self.queues['response'].put('Stage set back to initial position')
@@ -443,8 +447,8 @@ def pmt2undistorted_image(filename, fcut=10e3):
     
     fcut: cutting frequency of low pass filter applied on pmt signal
     '''
-    fsample=250e3
     hh=tables.open_file(filename, 'r')
+    fsample=hh.root.twopdata.attrs.AI_SAMPLE_RATE
     w=hh.root.twopdata.attrs['params_Scan_Width']
     h=hh.root.twopdata.attrs['params_Scan_Height']
     r=hh.root.twopdata.attrs['params_Resolution']
@@ -485,8 +489,10 @@ def pmt2undistorted_image(filename, fcut=10e3):
         min_line_length=min([i.shape[0] for i in orig_image_lines])
         orig_image=numpy.array([l[:min_line_length] for l in orig_image_lines])
         distorted_frames.append(orig_image)
-    distorted_frames=numpy.array(distorted_frames)
+    distorted_frames_shape=min([i.shape for i in distorted_frames])
+    distorted_frames=numpy.array([d[:distorted_frames_shape[0], :distorted_frames_shape[1]] for d in distorted_frames])
     frames=numpy.array(frames)
+    hh.close()
     return frames, distorted_frames
     if 0:
         from pylab import show, imshow, subplot, suptitle

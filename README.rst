@@ -37,6 +37,8 @@ How to build a simple GUI that triggers data acquisition and sends digital trigg
 
 VisExpMan has a SimpleGuiWindow class for implementing simple PyQt based applications. Based on Qt.QMainWindow and by default it consist of a log and a debug widget.
 
+The full version of the code is 'here. <https://raw.githubusercontent.com/roskalab/visexpman/zdev/applications/data_acquisition_gui.py>'
+
 .. code:: python
 
     from visexpman import gui
@@ -310,13 +312,47 @@ Reimplement 1-9 to this
 Device Interfaces (visexpman.hardware_interface)
 ------------------------------------------------
 
-visexpman.hardware_interface.camera
+visexpman.hardware_interface.daq - controlling National Instruments DAQmx based devices  - docstring !
 
-visexpman.hardware_interface.daq - controlling National Instruments DAQmx based devices
+def set_voltage(channel, voltage):
 
-visexpman.hardware_interface.openephys
+def set_waveform(channels,waveform,sample_rate = 1000):
+
+def set_waveform_start(channels,waveform,sample_rate):
+
+def set_waveform_finish(analog_output, timeout,wait=True):
+
+class AnalogRead():
+    """
+    Utility for recording finite analog signals in a non-blocking way
+    """
+    def __init__(self, channels, duration, fsample,limits=[-5,5], differential=False, timeout=3):
+
+def read(self):
+
+def abort(self):
+
+def set_digital_line(channel, value):
+
+def digital_pulse(channel,duration):
+
+class SyncAnalogIO():
+
+class AnalogRecorder(multiprocessing.Process):
+
+visexpman.hardware_interface.openephys - docstring !
+
+def start_recording(ip=None,  tag=""):
+
+def stop_recording(ip=None):
+
+def read_sync(in_folder):
 
 visexpman.hardware_interface.stage_control
+
+visexpman.hardware_interface.camera
+
+
 
 Stimulus Protocol Development
 ---------------------------------------
