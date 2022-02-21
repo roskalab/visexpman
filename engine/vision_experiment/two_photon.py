@@ -265,7 +265,11 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 self.printc('Gain set to {0}'.format(newparams['params/IR Gain']))
             elif newparams['params/Time lapse/Enable'] != self.settings['params/Time lapse/Enable']:
                 if newparams['params/Time lapse/Enable']:
-                    QtGui.QMessageBox.question(self, 'Warning', 'Make sure that computer is rebooted before a long recording!', QtGui.QMessageBox.Ok)
+                    if len(os.listdir(self.data_folder))>0:
+                        QtGui.QMessageBox.question(self, 'Warning', f'{self.data_folder} is not empty! It is recommended to start saving timelapse to an empty folder!', QtGui.QMessageBox.Ok)
+                    else:
+                        QtGui.QMessageBox.question(self, 'Warning', 'Make sure that computer is rebooted before a long recording!', QtGui.QMessageBox.Ok)
+                        
                     self.statusbar.twop_status.setText('2P time lapse')
                     self.last_scan=time.time()-self.settings['params/Time lapse/Interval']
                     self.statusbar.twop_status.setStyleSheet('background:red;')
@@ -1113,6 +1117,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
 
     def select_data_folder_action(self):
         df= QtGui.QFileDialog.getExistingDirectory(self, 'Select data folder',  self.data_folder).replace('/','\\')
+        self.printc(f'Selected data folder is {df}')
         if 'g:' in df.lower():
             raise IOError("Saving directly to Google drive not supported")
         else:
@@ -1120,18 +1125,34 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             
     def process_action(self):
         df= QtGui.QFileDialog.getExistingDirectory(self, 'Select folder to process. Make sure that folder contains only timelapse files from one recording!',  self.data_folder).replace('/','\\')
+        self.statusbar.twop_status.setText('Busy')
+        self.statusbar.twop_status.setStyleSheet('background:yellow;')
         #Check  dimension of data in files, raise error if incorrect files found
         files=[f for f in fileop.listdir(df) if os.path.splitext(f)[1]=='.hdf5']
         self.printc(f'Checking {len(files)} files')
         self.statusbar.progressbar.setRange(0, len(files))
         self.shapes=[]
-        #Aggregate timepoints
-        self.timelapse_timepoints=[]
         for i in range(len(files)):
             try:
                 h=tables.open_file(files[i], 'r')
                 self.shapes.append(h.root.twopdata.read().shape)
+                attributes_txt=[f'{an}={getattr(h.root.twopdata.attrs, an)}\r\n' for an in dir(h.root.twopdata.attrs)]
                 h.close()
+            except:
+                import traceback
+                self.printc(files[i])
+                self.printc(traceback.format_exc())
+            self.statusbar.progressbar.setValue(i+1)
+            QtCore.QCoreApplication.instance().processEvents()
+        if max([s[1:3] for s in self.shapes])!=min([s[1:3] for s in self.shapes]):
+            raise ValueError('Not all files have the same scan windows')
+        self.printc('Undistort images and remove transient images')
+        self.zstacks=[]
+        self.timelapse_timepoints=[]
+        for i in range(len(files)):
+            try:
+                zstack, zvalues=process_zstack(files[i])
+                self.zstacks.append(zstack)
                 ds=os.path.splitext(os.path.basename(files[i]))[0].split('_')[-1]
                 self.timelapse_timepoints.append(utils.datestring2timestamp(ds[:-1],format="%Y%m%d%H%M%S"))
             except:
@@ -1141,22 +1162,20 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             self.statusbar.progressbar.setValue(i+1)
             QtCore.QCoreApplication.instance().processEvents()
         self.timelapse_timepoints.sort()
-        if max([s[1:3] for s in self.shapes])!=min([s[1:3] for s in self.shapes]):
-            raise ValueError('Not all files have the same scan windows')
-        self.printc('Undistort images and remove transient images')
-        for i in range(len(files)):
-            try:
-                process_zstack(files[i])
-            except:
-                import traceback
-                self.printc(files[i])
-                self.printc(traceback.format_exc())
-            self.statusbar.progressbar.setValue(i+1)
-            QtCore.QCoreApplication.instance().processEvents()
+        self.zstacks=numpy.array(self.zstacks)
         #Merge all files to one big datafile
         #Save self.timelapse_timepoints to file
         self.statusbar.progressbar.setValue(0)
         self.statusbar.progressbar.setVisible(False)
+        import tifffile
+        fn=os.path.join(df, os.path.basename(df)+'_merged_timelapse.tiff')
+        tifffile.imwrite(fn, self.zstacks, imagej=True)
+        attributes_txt=''.join(attributes_txt)
+        tstxt=','.join(list(map(str, self.timelapse_timepoints)))
+        metadata=f'timestamps={tstxt}\r\n{attributes_txt}'
+        fileop.write_text_file(fileop.replace_extension(fn, '.txt'), metadata)
+        self.statusbar.twop_status.setText('Ready')
+        self.statusbar.twop_status.setStyleSheet('background:gray;')
         self.printc('Done')
 
     def exit_action(self):
@@ -1165,7 +1184,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self._close_hardware()
         self.close()
         
-def process_zstack(filename):
+def process_zstack(filename, max_pmt_voltage=8):
     #Undistort images based on scanner position signal
     frames, distorted_frames=scanner_control.pmt2undistorted_image(filename, fcut=10e3)
     frames=frames[1:]#Ignore first frame
@@ -1190,6 +1209,11 @@ def process_zstack(filename):
     zstackh[:, :, :, :]=zstack
     setattr(zstackh.attrs, 'zvalues', zvalues)
     h.close()
+    #Scale to uint16
+    zstack=zstack+1
+    zstack=numpy.clip(zstack, 0, max_pmt_voltage)
+    zstack=numpy.cast['uint16'](zstack/max_pmt_voltage*(2**16-1))
+    return zstack, zvalues
         
 def merge_image(ir_image, twop_image, kwargs):
     """

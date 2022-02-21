@@ -2255,7 +2255,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         saved_hash=self.guidata.read('software_hash')
         if not numpy.array_equal(saved_hash, current_hash):
             #self.to_gui.put({'permanent_warning':'Software hashes do not match, make sure that the correct software version is used!'})
-            self.printc('Software hashes do not match, make sure that the correct software version is used!')
+            self.printc('(Software hashes do not match, make sure that the correct software version is used!)')
         if self.machine_config.PLATFORM=='ao_cortical':
             meshash=introspect.mes2hash()
             saved_hash=self.guidata.read('mes_hash')
