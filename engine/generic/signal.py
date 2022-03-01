@@ -111,6 +111,11 @@ def find_biggest_object(binary_image):#Works also for 3d image
     biggest_object=numpy.where(labels==ii,True,False)
     return biggest_object
     
+def object_centers(binary_image):
+    labels, n=scipy.ndimage.label(binary_image)
+    centers=[numpy.array(numpy.where(labels==li)).mean(axis=1) for li in range(1,n+1)]
+    return centers
+    
 def remove_side_objects(binary_image):
     '''
     Remove objects touching image side
