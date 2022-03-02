@@ -1125,6 +1125,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             
     def process_action(self):
         df= QtGui.QFileDialog.getExistingDirectory(self, 'Select folder to process. Make sure that folder contains only timelapse files from one recording!',  self.data_folder).replace('/','\\')
+        if df.lower()[0]=='g':
+            raise IOError('Files from Google drive are not processed')
         self.statusbar.twop_status.setText('Busy')
         self.statusbar.twop_status.setStyleSheet('background:yellow;')
         #Check  dimension of data in files, raise error if incorrect files found
@@ -1149,10 +1151,12 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.printc('Undistort images and remove transient images')
         self.zstacks=[]
         self.timelapse_timepoints=[]
+        self.distorted_s=[]
         for i in range(len(files)):
             try:
-                zstack, zvalues=process_zstack(files[i])
+                zstack, zvalues, distorted=process_zstack(files[i])
                 self.zstacks.append(zstack)
+                self.distorted_s.append(distorted)
                 ds=os.path.splitext(os.path.basename(files[i]))[0].split('_')[-1]
                 self.timelapse_timepoints.append(utils.datestring2timestamp(ds[:-1],format="%Y%m%d%H%M%S"))
             except:
@@ -1168,7 +1172,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.statusbar.progressbar.setValue(0)
         self.statusbar.progressbar.setVisible(False)
         import tifffile
-        fn=os.path.join(df, os.path.basename(df)+'_merged_timelapse.tiff')
+        dtag='distorted' if any(self.distorted_s) else ''
+        fn=os.path.join(df, os.path.basename(df)+f'_{dtag}_merged_timelapse.tiff')
         tifffile.imwrite(fn, self.zstacks, imagej=True)
         attributes_txt=''.join(attributes_txt)
         tstxt=','.join(list(map(str, self.timelapse_timepoints)))
@@ -1186,7 +1191,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         
 def process_zstack(filename, max_pmt_voltage=8):
     #Undistort images based on scanner position signal
-    frames, distorted_frames=scanner_control.pmt2undistorted_image(filename, fcut=10e3)
+    frames, distorted_frames, distorted=scanner_control.pmt2undistorted_image(filename, fcut=10e3)
     frames=frames[1:]#Ignore first frame
     #remove transient frames
     h=tables.open_file(filename, 'a')
@@ -1213,7 +1218,7 @@ def process_zstack(filename, max_pmt_voltage=8):
     zstack=zstack+1
     zstack=numpy.clip(zstack, 0, max_pmt_voltage)
     zstack=numpy.cast['uint16'](zstack/max_pmt_voltage*(2**16-1))
-    return zstack, zvalues
+    return zstack, zvalues, distorted
         
 def merge_image(ir_image, twop_image, kwargs):
     """

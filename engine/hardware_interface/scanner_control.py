@@ -470,7 +470,12 @@ def pmt2undistorted_image(filename, fcut=10e3):
         pos_peaks=scipy.signal.find_peaks(xposfilt)[0]
         neg_peaks=scipy.signal.find_peaks(-xposfilt)[0]
         if pos_peaks.shape[0]!=w*r+nxscans_flyback!=neg_peaks.shape[0]:
-            raise ValueError('Incorrect number of scans in position signal')
+            print(f'Incorrect number of scans in position signal,pos_peaks: {pos_peaks.shape}, neg_peaks: {neg_peaks.shape}, {w}, {r}, {nxscans_flyback} ')
+            tp=hh.root.twopdata.read()[:, :, :, 0]
+            hh.close()
+            distorted=True
+            return tp, tp, distorted
+            #raise ValueError(f'Incorrect number of scans in position signal,pos_peaks: {pos_peaks.shape}, neg_peaks: {neg_peaks.shape}, {w}, {r}, {nxscans_flyback} ')
         #Remove flyback scans
         pos_peaks=pos_peaks[:int(w*r)]
         neg_peaks=neg_peaks[:int(w*r)]
@@ -493,7 +498,8 @@ def pmt2undistorted_image(filename, fcut=10e3):
     distorted_frames=numpy.array([d[:distorted_frames_shape[0], :distorted_frames_shape[1]] for d in distorted_frames])
     frames=numpy.array(frames)
     hh.close()
-    return frames, distorted_frames
+    distorted=False
+    return frames, distorted_frames, distorted
     if 0:
         from pylab import show, imshow, subplot, suptitle
         suptitle('Raw vs undistorted images')
@@ -731,8 +737,12 @@ class Test(unittest.TestCase):
         files.extend(fileop.listdir(folder))
         for fn in files:
             t0=time.time()
-            pmt2undistorted_image(fn)
-            print(time.time()-t0)
+            try:
+                pmt2undistorted_image(fn)
+            except:
+                import traceback
+                print(traceback.format_exc())
+            print(fn, time.time()-t0)
             
             
 if __name__ == "__main__":
