@@ -615,7 +615,7 @@ class ExperimentHandler(object):
                         time.sleep(10)
                         shutil.copy(self.current_experiment_parameters['mcd_file'], dst)
                     except:
-                        if self.ask4confirmation('Stop MC recording manually. Press no for skipping renaming mcd file'):
+                    if self.ask4confirmation('Stop MC recording manually. Continue with moving and renaming mcd file?'):
                             time.sleep(2)
                             try:
                                 shutil.copy(self.current_experiment_parameters['mcd_file'], dst)
@@ -627,7 +627,7 @@ class ExperimentHandler(object):
                     self.printc('MEA recording almost finished, please wait...')
                     time.sleep(self.machine_config.FILE_CHECK_INTERVAL/2+1)
                     import filecmp
-                    if filecmp.cmp(self.current_experiment_parameters['mcd_file'],dst):
+                if filecmp.cmp(self.current_experiment_parameters['mcd_file'],dst) and 0:#Do not remove original file
                         src=self.current_experiment_parameters['mcd_file']
                         self.printc(f'Delete {src}')
                         os.remove(src)
