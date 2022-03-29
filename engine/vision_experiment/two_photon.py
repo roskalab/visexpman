@@ -947,6 +947,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             st=self.settings['params/Z Stack/Step']
             self.depths=numpy.linspace(s, e, int(abs(s-e)/st+1))
             steptime=1 if st<1000 else st/1000
+            steptime*=4
             self.stepsamples=int(numpy.ceil(self.get_fps()*steptime))
             self.printc(f"Z stack in {', '.join(map(str,self.depths))}, stepsamples: {self.stepsamples}")
             self.zvalues=numpy.repeat(self.depths, self.settings['params/Z Stack/Samples per depth']+self.stepsamples)
@@ -1154,7 +1155,12 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.distorted_s=[]
         for i in range(len(files)):
             try:
-                zstack, zvalues, distorted=process_zstack(files[i])
+                res=process_zstack(files[i])
+                if res is None:
+                    self.printc(f'Skip {files[i]},  already processed?,  TODO: handle already processed files')
+                    continue
+                else:
+                    zstack, zvalues, distorted=res
                 self.zstacks.append(zstack)
                 self.distorted_s.append(distorted)
                 ds=os.path.splitext(os.path.basename(files[i]))[0].split('_')[-1]
@@ -1215,9 +1221,12 @@ def process_zstack(filename, max_pmt_voltage=8):
     setattr(zstackh.attrs, 'zvalues', zvalues)
     h.close()
     #Scale to uint16
-    zstack=zstack+1
-    zstack=numpy.clip(zstack, 0, max_pmt_voltage)
-    zstack=numpy.cast['uint16'](zstack/max_pmt_voltage*(2**16-1))
+    if zstack.max()<20:
+        zstack=zstack+1
+        zstack=numpy.clip(zstack, 0, max_pmt_voltage)
+        zstack=numpy.cast['uint16'](zstack/max_pmt_voltage*(2**16-1))
+    else:
+        zstack=numpy.cast['uint16'](zstack)
     return zstack, zvalues, distorted
         
 def merge_image(ir_image, twop_image, kwargs):
@@ -1491,7 +1500,7 @@ class Test(unittest.TestCase):
                 numpy.testing.assert_equal(numpy.array([0.75, 0.75, 0.5 ]), center_pixel)
                 
     def test_process_zstack(self):
-        process_zstack(r'c:\Data\2p_TEST_202202181044354.hdf5')
+        process_zstack('D:\\Data\\convert\\2p_BEAD_TEST_202202282054006.hdf5')
 
             
 

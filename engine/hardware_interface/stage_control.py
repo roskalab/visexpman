@@ -365,10 +365,13 @@ class SutterStage(serial.Serial):
             #self.write(b'b\r')#Set to relative mode
             self.write(b'a\r')#Set to absolue mode
             self.check_response()
+            self.write('V\x03\x00\r'.encode())#Set speed to 700 ustep/second
+            self.check_response()
             self.setnowait=False
             initial=self.z
         except:
-            import pdb
+            import pdb, traceback
+            print(traceback.format_exc())
             pdb.set_trace()
         pass
             
@@ -405,7 +408,7 @@ class SutterStage(serial.Serial):
         cmd=struct.pack('<iii', 0, 0, int(value))
         deltaz=abs(value-self.xyz[2])
         #print(deltaz)
-        if deltaz>10000:
+        if deltaz>30000:
             raise ValueError(f'too big movement: {deltaz}')
         self.write(b'm'+cmd+b'\r')
         self.xyz=(self.xyz[0], self.xyz[1], value)

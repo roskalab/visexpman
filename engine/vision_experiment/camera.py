@@ -753,8 +753,11 @@ class Camera(gui.VisexpmanMainWindow):
                                 numpy.save('c:\\Data\\log\\{0}.npy'.format(time.time()),  numpy.array(p))
                                 self.logger.info(traceback.format_exc())
                     
-                self.frame1=numpy.rot90(numpy.flipud(f))
-                self.image.set_image(self.frame1)
+                try:
+                    self.frame1=numpy.rot90(numpy.flipud(f))
+                    self.image.set_image(self.frame1)
+                except:
+                    print(traceback.format_exc())
                 if self.recording and hasattr(self,  'tstart'):
                     dt=time.time()-self.tstart
                     title='{0} s'.format(int(dt))

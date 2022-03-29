@@ -146,6 +146,15 @@ def object_size(binary_image):
             break
     return ct*2
     
+def object_maximum_distance(binary_image):
+    edge=binary_image-scipy.ndimage.binary_erosion(binary_image)
+    edge_pixels=numpy.array(numpy.nonzero(edge))
+    distances=[]
+    for i in range(edge_pixels.shape[1]):
+        for j in range(i, edge_pixels.shape[1]):
+            distances.append(numpy.sqrt(((edge_pixels[:,i]-edge_pixels[:,j])**2).sum()))
+    return max(distances)
+    
 def cut_mask(im,mask):
     x,y=numpy.nonzero(mask)
     if len(im.shape)==3:
