@@ -529,6 +529,17 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         if hasattr(self.datafile, 'block_timestamps'):
             variables2save.append('block_timestamps')
         [setattr(self.datafile, v, getattr(self,v)) for v in variables2save if hasattr(self, v) and v not in ['configs', 'software_environment']]
+        if hasattr(self.datafile,  'parameters'):
+            out={}
+            for k, v in self.datafile.parameters.items():
+                if v=='':continue
+                if v is None:continue
+                if ' ' in k:
+                    out[k.replace(' ', '_')]=v
+                    
+                else:
+                    out[k]=v
+            self.datafile.parameters=out
         for v in variables2save :
             if hasattr(self.datafile, v):
                 self.printl(v)

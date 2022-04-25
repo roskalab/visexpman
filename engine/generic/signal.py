@@ -102,12 +102,58 @@ def central_object(binary_image):
     else:
         center=labels[int(labels.shape[0]/2),int(labels.shape[1]/2),int(labels.shape[2]/2)]
     return numpy.where(labels==center,1,0)
-    
+       
 def find_biggest_object(binary_image):#Works also for 3d image
+    if binary_image.sum()==0:
+        return binary_image
     labels, n=scipy.ndimage.label(binary_image)
     ii=numpy.array([numpy.where(labels==li)[0].shape[0] for li in range(1,n+1)]).argmax()+1
     biggest_object=numpy.where(labels==ii,True,False)
     return biggest_object
+    
+def object_centers(binary_image):
+    labels, n=scipy.ndimage.label(binary_image)
+    centers=[numpy.array(numpy.where(labels==li)).mean(axis=1) for li in range(1,n+1)]
+    return centers
+    
+def remove_side_objects(binary_image):
+    '''
+    Remove objects touching image side
+    '''
+    if binary_image.sum()==0:
+        return binary_image
+    labels, n=scipy.ndimage.label(binary_image)
+    labels2keep=[ni for ni in range(1, n+1) if not is_side_object(numpy.where(labels==ni, 1, 0))]
+    out=numpy.zeros_like(binary_image)
+    for l in labels2keep:
+        x, y=numpy.where(labels==l)
+        out[x, y]=1
+    return out
+    
+def is_side_object(binary_image):
+    return binary_image[0, :].max()>0 or binary_image[-1, :].max()>0 or binary_image[:, 0].max()>0 or binary_image[:, -1].max()>0
+    
+def object_size(binary_image):
+    '''
+    Determines object size by erosion
+    '''
+    img=binary_image.copy()
+    ct=0
+    while True:
+        img=scipy.ndimage.binary_erosion(img)
+        ct+=1
+        if img.sum()==0:
+            break
+    return ct*2
+    
+def object_maximum_distance(binary_image):
+    edge=binary_image-scipy.ndimage.binary_erosion(binary_image)
+    edge_pixels=numpy.array(numpy.nonzero(edge))
+    distances=[]
+    for i in range(edge_pixels.shape[1]):
+        for j in range(i, edge_pixels.shape[1]):
+            distances.append(numpy.sqrt(((edge_pixels[:,i]-edge_pixels[:,j])**2).sum()))
+    return max(distances)
     
 def cut_mask(im,mask):
     x,y=numpy.nonzero(mask)

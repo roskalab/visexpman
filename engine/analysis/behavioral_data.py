@@ -730,14 +730,21 @@ def extract_mouse_position(im, channel,threshold=100):
     x,y=numpy.nonzero(mask)
     return x.mean(), y.mean()
     
-def mouse_head_direction(image, threshold=80,  roi_size=20, saturation_threshold=0.6, value_threshold=0.4, debug=False, dim_red=False):
+def mouse_head_direction(image, threshold=80,  roi_size=20, saturation_threshold=0.6, value_threshold=0.4, debug=False, dim_red=False, old_version=False):
+    #image[:, :100]=0#Mask bright side
     from skimage.color import rgb2hsv
     result=True
     #Clear watermark which is used for video integrity check
     image[0, 0]=0
     image[0, 1]=0
     try:
-        coo=numpy.array([int(c.mean()) for c in numpy.where(image.sum(axis=2)>3*threshold)])
+        if old_version:#Old method
+            coo=numpy.array([int(c.mean()) for c in numpy.where(image.sum(axis=2)>3*threshold)])
+        else:
+            hsvim=rgb2hsv(image)
+            sv=numpy.where(hsvim[:, :, 1]>saturation_threshold, 1, 0)*numpy.where(hsvim[:, :, 2]>0.1, 1, 0)
+            coo=numpy.nonzero(signal.find_biggest_object(sv))
+            coo=numpy.cast['int'](numpy.array(coo).mean(axis=1))
     except ValueError:#Image too dim
         result=False
         animal_position=numpy.array([numpy.NaN, numpy.NaN])
@@ -745,7 +752,7 @@ def mouse_head_direction(image, threshold=80,  roi_size=20, saturation_threshold
         green=numpy.array([numpy.NaN, numpy.NaN])
         blue=numpy.array([numpy.NaN, numpy.NaN])
         red_angle=numpy.NaN
-        return result, animal_position, red_angle, red, green, blue, None
+        return result, animal_position, red_angle, red, green, blue, None, (numpy.nan, numpy.nan, numpy.nan)
     #Cut roi and detect red and green dots
     startx=coo[0]-roi_size
     starty=coo[1]-roi_size
@@ -760,13 +767,27 @@ def mouse_head_direction(image, threshold=80,  roi_size=20, saturation_threshold
     if endy>image.shape[1]-1:
         endy=image.shape[1]-1
     roirgb=image[startx: endx, starty: endy, :]
+    if roirgb.max()<threshold and 0:
+        #Assuming that bright non-led objects are present
+        #Search for red/green/blue objects on entire image
+        hsvim=rgb2hsv(image)
+        sv=numpy.where(hsvim[:, :, 1]>saturation_threshold, 1, 0)*numpy.where(hsvim[:, :, 2]>0.1, 1, 0)
+        coo=numpy.nonzero(signal.find_biggest_object(sv))
     roi=rgb2hsv(roirgb)
+    if 0:
+        roi=rgb2hsv(image)
+        roi_size=0
+        coo*=0
     roi[:,:,1]*=numpy.where(roi[:,:,2]>value_threshold,1,0)#Set saturation to 0 where value is low -> exclude these pixels from color detection
     animal_position=numpy.zeros(2)
     led_ct=0
     color_tolerance=0.15
     try:
-        green=numpy.array([int(c.mean()) for c in numpy.where(numpy.logical_and(abs(roi[:, :, 0]-0.333)<color_tolerance, roi[:, :, 1]>saturation_threshold))])
+        if not dim_red:
+            green=numpy.array([int(c.mean()) for c in numpy.where(numpy.logical_and(abs(roi[:, :, 0]-0.333)<color_tolerance, roi[:, :, 1]>saturation_threshold))])
+        else:
+            green=numpy.array([int(c.mean()) for c in numpy.where(numpy.logical_and(abs(roi[:, :, 0]-0.333)<color_tolerance, roi[:, :, 2]>0.1))])
+    
         green+=coo-roi_size
         animal_position+=green
         led_ct+=1
@@ -808,6 +829,10 @@ def mouse_head_direction(image, threshold=80,  roi_size=20, saturation_threshold
     else:
         red_angle=numpy.degrees(numpy.arctan2(*(-0.5*(blue-green)+blue-red)))
         result=True
+    red2_angle=numpy.degrees(numpy.arctan2(*(blue-green)))
+    green_angle=numpy.degrees(numpy.arctan2(*(blue-red)))
+    blue_angle=numpy.degrees(numpy.arctan2(*(green-red)))
+        
     if led_ct==0:
         animal_position=numpy.array([numpy.NaN, numpy.NaN])
     else:
@@ -851,7 +876,10 @@ def mouse_head_direction(image, threshold=80,  roi_size=20, saturation_threshold
         draw = ImageDraw.Draw(img)
         draw.text((0, 0),"{0}".format(int(red_angle)),(255,255,255),font=font)
         out=numpy.asarray(img)
-    return result, animal_position, red_angle, red, green, blue, out
+#    if numpy.isnan(red_angle):
+#        pdb.set_trace()
+
+    return result, animal_position, red_angle, red, green, blue, out,  (red2_angle, green_angle, blue_angle)
     
 def find_objects(frame,min_size,threshold=40):
     if frame.ndim==3:
@@ -1348,7 +1376,20 @@ class TestBehavAnalysis(unittest.TestCase):
 #                        break
 #                imshow(mip)
 #                show()
-
+    #@unittest.skip('')
+    def test(self):
+        fn='/home/rz/tmp/ts/behav_202109142235399.mp4'
+        videogen = skvideo.io.vreader(fn)
+        i=0
+        ra=[]
+        for frame in videogen:
+            framem=frame.copy()
+            result, position, red_angle, red, green, blue, debug=mouse_head_direction(framem[:,100:,:],threshold=80,  roi_size=40)
+#            print(i,red_angle)
+            ra.append(red_angle)
+            i+=1
+        print(sum([numpy.isnan(ii) for ii in ra])/i)
+        pass
 
 if __name__ == "__main__":
     unittest.main()

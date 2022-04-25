@@ -9,9 +9,12 @@ try:
     import tisgrabber
 except:
     print('No Imaging source camera driver installed')
-import PyDAQmx
-import PyDAQmx.DAQmxConstants as DAQmxConstants
-import PyDAQmx.DAQmxTypes as DAQmxTypes
+try:
+    import PyDAQmx
+    import PyDAQmx.DAQmxConstants as DAQmxConstants
+    import PyDAQmx.DAQmxTypes as DAQmxTypes
+except ImportError:
+    print('PyDAQmx not installed')
 from visexpman.engine.hardware_interface import instrument
 import copy
 

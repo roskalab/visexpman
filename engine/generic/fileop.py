@@ -331,6 +331,8 @@ def find_files_and_folders(start_path,  extension = None, filter = None):
         '''
         Finds all folders and files. With extension the files can be filtered
         '''
+        if not os.path.exists(start_path):
+            raise IOError(f'{start_path} does not exists')
         directories = []
         all_files  = []
         directories = []

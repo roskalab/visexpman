@@ -275,12 +275,13 @@ class ExperimentHandler(object):
                     import scipy.io
                     pfn=os.path.join(self.machine_config.PROTOCOL_PATH, self.guidata.read('Protocol'))
                     wf_file_content=scipy.io.loadmat(pfn)
+                    self.wf_file_content=wf_file_content
                     vn=[k for k in wf_file_content.keys() if k[0]!='_'][0]
                     self.printc(f'Read {vn} from {pfn}')
                     pulses=wf_file_content[vn]
                     epochs=[]
                     for i in range(pulses.shape[0]):
-                        epochs.append(pulses[i]/scale*1e3)
+                        epochs.append(pulses[i]/scale*1e3)#Command signal: nA or V input
                         epochs.append(numpy.zeros(int(fsample*self.guidata.read('Wait time')*1e-3)))
                     experiment_parameters['elphys_waveform']=numpy.concatenate(epochs)
                     
@@ -562,6 +563,7 @@ class ExperimentHandler(object):
                 
             elif self.machine_config.PLATFORM not in ['erg'] and 'elphys_waveform' not in experiment_parameters and 'ELPHYS_STIMULUS' not in self.stimulus_config:
                 self.send({'function': 'start_stimulus','args':[experiment_parameters]},'stim')
+        self.current_experiment_parameters=experiment_parameters
         if 'elphys_waveform' in experiment_parameters:
             self.printc('Start elphys pulses')
             self.ao, d=daq.set_waveform_start(self.machine_config.ELPHYS_COMMAND_CHANNEL,experiment_parameters['elphys_waveform'][None],self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
@@ -613,7 +615,7 @@ class ExperimentHandler(object):
                         time.sleep(10)
                         shutil.copy(self.current_experiment_parameters['mcd_file'], dst)
                     except:
-                        if self.ask4confirmation('Stop MC recording manually. Press no for skipping renaming mcd file'):
+                    if self.ask4confirmation('Stop MC recording manually. Continue with moving and renaming mcd file?'):
                             time.sleep(2)
                             try:
                                 shutil.copy(self.current_experiment_parameters['mcd_file'], dst)
@@ -625,13 +627,15 @@ class ExperimentHandler(object):
                     self.printc('MEA recording almost finished, please wait...')
                     time.sleep(self.machine_config.FILE_CHECK_INTERVAL/2+1)
                     import filecmp
-                    if filecmp.cmp(self.current_experiment_parameters['mcd_file'],dst):
+                if filecmp.cmp(self.current_experiment_parameters['mcd_file'],dst) and 0:#Do not remove original file
                         src=self.current_experiment_parameters['mcd_file']
                         self.printc(f'Delete {src}')
                         os.remove(src)
                 elif self.machine_config.FILE_TRIGGER_EXTENSION=='.msrd':
                     files=[f for f in fileop.listdir(os.path.dirname(self.current_experiment_parameters['mcd_file'])) if os.path.splitext(self.current_experiment_parameters['mcd_file'])[0] in f]
-                    dstfiles=[os.path.splitext(self.current_experiment_parameters['outfilename'])[0]+os.path.splitext(f)[1] for f in files]
+                    msrd_num=os.path.splitext(os.path.basename(self.current_experiment_parameters['mcd_file']).split("_")[1])[0]
+                    dstfiles=[os.path.splitext(self.current_experiment_parameters['outfilename'])[0].replace('data_',f'data_{msrd_num}_')+os.path.splitext(f)[1] for f in files]
+                    self.dstfiles=dstfiles
                     try:
                         time.sleep(10)
                         for i in range(len(files)):
@@ -740,6 +744,8 @@ class ExperimentHandler(object):
                     experiment_data.hdf52mat(fn, scale_sync=True)
                 elif 'stim' in self.machine_config.CONNECTIONS and not hasattr(self,  'ao'):
                     outfile=self.current_experiment_parameters['outfilename']
+                    if not os.path.exists(outfile):
+                        self.printc(f'{outfile} is missing')
                     fileop.merge_hdf5_files(self.daqdatafile.filename, outfile)
                     self.printc('Sync data merged to {0}'.format(outfile))
                     experiment_data.hdf52mat(outfile, scale_sync=True)
@@ -805,10 +811,11 @@ class ExperimentHandler(object):
 #                if self.guidata.read('Displayed signal length')==0:
 #                    self._plot_elphys(hh.sync)
                 try:
+                    self.printc('Check timing signals')
                     hh.sync2time()
                     hh.check_timing(check_frame_rate=True)
                 except:
-                    pass
+                    self.printc('Checking timing signals failed')
 #                    self.printc(traceback.format_exc())
                 hh.close()
         self.to_gui.put({'update_status':'idle'})
@@ -1248,6 +1255,9 @@ class Analysis(object):
         else:
             self.to_gui.put({'plot_title': os.path.dirname(self.filename)+'<br>'+os.path.basename(self.filename)})
             sync=self.datafile.findvar("sync")
+            if not hasattr(self, 'sample_rate'):
+                self.sample_rate=self.guidata.read('Sample Rate')
+                self.printc('Warning: sample rate must be read from datafile!!!!')
             self._plot_elphys(sync,  full_view=True)
         if self.machine_config.PLATFORM not in  ['resonant',  "elphys", 'erg']:#Do not load imaging data
             self.datafile.get_image(image_type=self.guidata.read('3d to 2d Image Function'),motion_correction=self.guidata.read('Motion Correction'))
@@ -1269,7 +1279,10 @@ class Analysis(object):
                 msg='In {0} stimulus sync signal or imaging sync signal was not recorded'.format(self.filename)
                 self.notify('Error', msg)
                 raise RuntimeError(msg)
-        self.experiment_name= self.datafile.findvar('parameters')['stimclass']
+        try:
+            self.experiment_name= self.datafile.findvar('parameters')['stimclass']
+        except:
+            self.printc('Warning: stimclass cannot be read')
         if self.machine_config.PLATFORM not in ['resonant',  "elphys", 'erg']:
             if self.machine_config.PLATFORM != 'ao_cortical':
                 self._recalculate_background()
@@ -1305,7 +1318,10 @@ class Analysis(object):
         self.datafile.close()
         self._bouton_analysis()
         if self.machine_config.PLATFORM in ['elphys']:
-            self.spikes2polar(filename)
+            try:
+                self.spikes2polar(filename)
+            except:
+                self.printc('Polar plot cannot be generated')
         if hasattr(self, 'user_gui_engine') and hasattr(self.user_gui_engine,'open_datafile'):
             self.user_gui_engine.open_datafile(self.filename)
 
@@ -2239,7 +2255,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         saved_hash=self.guidata.read('software_hash')
         if not numpy.array_equal(saved_hash, current_hash):
             #self.to_gui.put({'permanent_warning':'Software hashes do not match, make sure that the correct software version is used!'})
-            self.printc('Software hashes do not match, make sure that the correct software version is used!')
+            self.printc('(Software hashes do not match, make sure that the correct software version is used!)')
         if self.machine_config.PLATFORM=='ao_cortical':
             meshash=introspect.mes2hash()
             saved_hash=self.guidata.read('mes_hash')
@@ -2354,6 +2370,9 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
                         break
                 else:
                     time.sleep(self.loop_wait)
+                    continue
+                if not hasattr(msg,'keys'):
+                    self.printc(msg)
                     continue
                 #parse message
                 if 'data' in msg:#expected format: {'data': value, 'path': gui path, 'name': name}

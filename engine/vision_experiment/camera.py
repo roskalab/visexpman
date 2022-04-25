@@ -237,11 +237,11 @@ class Camera(gui.VisexpmanMainWindow):
                 if not os.path.exists(outfolder):
                     os.makedirs(outfolder)
                 id=experiment_data.get_id()
-                self.cam1fn=experiment_data.get_recording_path(self.machine_config, {'outfolder': outfolder,  'id': id, 'tag': self.experiment_name_tag},prefix = self.machine_config.CAM1FILENAME_TAG,extension='.mp4')
-                self.cam2fn=experiment_data.get_recording_path(self.machine_config, {'outfolder': outfolder,  'id': id, 'tag': self.experiment_name_tag},prefix = self.machine_config.CAM2FILENAME_TAG,extension='.mp4')
-                self.metadatafn=fileop.replace_extension(self.cam1fn, '.mat')
+                self.cam1fn=experiment_data.get_recording_path(self.machine_config, {'outfolder': outfolder,  'id': id, 'tag': self.experiment_name_tag},postfix = self.machine_config.CAM1FILENAME_TAG,extension='.mp4')
+                self.cam2fn=experiment_data.get_recording_path(self.machine_config, {'outfolder': outfolder,  'id': id, 'tag': self.experiment_name_tag},postfix = self.machine_config.CAM2FILENAME_TAG,extension='.mp4')
+                self.metadatafn=fileop.replace_extension(self.cam1fn, '.mat').replace(self.machine_config.CAM1FILENAME_TAG, '_sync_info')
             if self.machine_config.ENABLE_OPENEPHYS_TRIGGER and self.parameters['params/Neuropixel SMA port TRIG'] :
-                tag=f'{self.experiment_name_tag}_{id}'
+                tag=f'{id}_{self.experiment_name_tag}'
                 try:
                     if not openephys.start_recording(self.machine_config.OPENEPHYS_COMPUTER_IP, tag=tag):
                         self.printc('Openephys cannot be triggered, is it started?')
@@ -287,7 +287,7 @@ class Camera(gui.VisexpmanMainWindow):
                 daq.set_digital_line(self.machine_config.MC_STOP_TRIGGER,1)
             if self.machine_config.ENABLE_STIM_UDP_TRIGGER:
                 fusi_enable='fUSI' if  self.parameters['params/fUSI enable'] else ''
-                utils.send_udp(self.machine_config.STIM_COMPUTER_IP,self.machine_config.STIM_TRIGGER_PORT,f'start,{self.experiment_name_tag}_{id},{fusi_enable}')
+                utils.send_udp(self.machine_config.STIM_COMPUTER_IP,self.machine_config.STIM_TRIGGER_PORT,f'start,{id}_{self.experiment_name_tag},{fusi_enable}')
                 self.printc('Sent trigger to Psychotoolbox')
             import psutil
             p = psutil.Process(self.camera1handler.pid)
@@ -753,8 +753,11 @@ class Camera(gui.VisexpmanMainWindow):
                                 numpy.save('c:\\Data\\log\\{0}.npy'.format(time.time()),  numpy.array(p))
                                 self.logger.info(traceback.format_exc())
                     
-                self.frame1=numpy.rot90(numpy.flipud(f))
-                self.image.set_image(self.frame1)
+                try:
+                    self.frame1=numpy.rot90(numpy.flipud(f))
+                    self.image.set_image(self.frame1)
+                except:
+                    print(traceback.format_exc())
                 if self.recording and hasattr(self,  'tstart'):
                     dt=time.time()-self.tstart
                     title='{0} s'.format(int(dt))

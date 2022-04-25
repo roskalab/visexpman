@@ -208,13 +208,13 @@ class VisexpmanMainWindow(Qt.QMainWindow):
         print('close event')
         self.exit_action()
 
-class SimpleAppWindow(Qt.QMainWindow):
-    def __init__(self):
+class SimpleGuiWindow(Qt.QMainWindow):
+    def __init__(self, logfolder=tempfile.gettempdir()):
         if QtCore.QCoreApplication.instance() is None:
             self.qt_app = Qt.QApplication([])
         Qt.QMainWindow.__init__(self)
         if not hasattr(self, 'logfile'):
-            self.logfile = os.path.join(tempfile.gettempdir(), 'log_{0}.txt'.format(utils.timestamp2ymdhms(time.time(), filename=True)))
+            self.logfile = os.path.join(logfolder, 'log_{0}.txt'.format(utils.timestamp2ymdhms(time.time(), filename=True)))
         logging.basicConfig(filename= self.logfile,
                     format='%(asctime)s %(levelname)s\t%(message)s',
                     level=logging.INFO)
@@ -242,6 +242,8 @@ class SimpleAppWindow(Qt.QMainWindow):
         '''
                     
     def logfile2screen(self):
+        if not os.path.exists(self.logfile):
+            return
         newlogtext=fileop.read_text_file(self.logfile)
         if len(newlogtext)!=len(self.logtext):
             self.logtext=newlogtext
@@ -254,7 +256,9 @@ class SimpleAppWindow(Qt.QMainWindow):
 
     def log(self, msg, loglevel='info'):
         getattr(logging, loglevel)(str(msg))
-        self.logw.update(fileop.read_text_file(self.logfile))
+        print(f'{loglevel}: {msg}')
+        if os.path.exists(self.logfile):
+            self.logw.update(fileop.read_text_file(self.logfile))
         
     def catch_error_message(self):
         if not error_messages.empty():
@@ -314,6 +318,11 @@ class SimpleAppWindow(Qt.QMainWindow):
             self.pt=Plot(None)
             self.pt.update_curves(x, y)
             self.pt.show()
+            
+class SimpleAppWindow(SimpleGuiWindow):
+    '''
+    Deprecated
+    '''
 
 class Progressbar(QtGui.QWidget):
     def __init__(self, maxtime, name = '', autoclose = False, timer=False):
@@ -601,6 +610,7 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
         self.scene().sigMouseClicked.connect(self.mouse_clicked)
         self.rois = []    
         self.dot_size=6
+        self.concatenate_manual_points=False
         
         if 0: #Experimental code for adding custom context menu
             #Add LUT min/max slider to context menu
@@ -635,6 +645,12 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
         
     def set_scale(self,scale):
         self.img.setScale(scale)
+        
+    def add_polygon(self,points):
+        self.points=points.tolist()
+        print(self.points)
+        pl=self.plot.plot(points[:,0],points[:,1], pen=(0,0,185),symbolBrush=(0,0,185), symbolPen='b', pxMode=True,symbolSize=self.dot_size)
+        self.manual_points=[pl]
 
     def mouse_clicked(self,e):
         print(e)
@@ -650,14 +666,37 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
                 if int(e.buttons()) == 1:
                     if e.modifiers()==QtCore.Qt.ControlModifier or e.modifiers()==QtCore.Qt.ShiftModifier:
                         if len(self.manual_points)>0:
-                            self.point_coos=numpy.array([[self.manual_points[pi].xvalue,self.manual_points[pi].yvalue] for pi in range(len(self.manual_points))])
-                            distance_square_sums=((self.point_coos-numpy.array([[p.x(),p.y()]]))**2).sum(axis=1)                            
-                            self.plot.removeItem(self.manual_points[distance_square_sums.argmin()])
-                            del self.manual_points[distance_square_sums.argmin()]
+                            if self.concatenate_manual_points:
+                                self.plot.removeItem(self.manual_points[-1])
+                                del self.manual_points[-1]
+                                del self.points[-1]
+                                points=numpy.array(self.points)
+                                if len(points)>0:
+                                    pl=self.plot.plot(points[:,0],points[:,1], pen=(0,0,185),symbolBrush=(0,0,185), symbolPen='b', pxMode=True,symbolSize=self.dot_size)
+                                    self.manual_points.append(pl)
+                            else:
+                                self.point_coos=numpy.array([[self.manual_points[pi].xvalue,self.manual_points[pi].yvalue] for pi in range(len(self.manual_points))])
+                                distance_square_sums=((self.point_coos-numpy.array([[p.x(),p.y()]]))**2).sum(axis=1)                            
+                                self.plot.removeItem(self.manual_points[distance_square_sums.argmin()])
+                                del self.manual_points[distance_square_sums.argmin()]
                     else:
                         if not hasattr(self, 'manual_points'):
                             self.manual_points=[]
-                        pl=self.plot.plot(numpy.array([p.x()]),numpy.array([p.y()]),  pen=None, symbol='o',symbolSize=self.dot_size)
+                        #ppp=pyqtgraph.mkPen(color='r', width=0.4)
+                        #
+                        if self.concatenate_manual_points:
+                            if len(self.manual_points)==0:
+                                self.points=[[p.x(),p.y()]]
+                            else:
+                                #points=[[p.xvalue, p.yvalue] for p in self.manual_points]
+                                self.points.append([p.x(),p.y()])
+                            if len(self.manual_points):
+                                self.plot.removeItem(self.manual_points[-1])
+                                del self.manual_points[-1]
+                            points=numpy.array(self.points)
+                            pl=self.plot.plot(points[:,0],points[:,1], pen=(0,0,185),symbolBrush=(0,0,185), symbolPen='b', pxMode=True,symbolSize=self.dot_size)
+                        else:
+                            pl=self.plot.plot(numpy.array([p.x()]),numpy.array([p.y()]),  pen=None, symbol='o',symbolSize=self.dot_size)
                         pl.xvalue=p.x()
                         pl.yvalue=p.y()
                         self.manual_points.append(pl)
@@ -1222,7 +1261,8 @@ class ImageClick(Qt.QMainWindow):
         self.setWindowTitle(title)
         self.title=title
         self.npoints=npoints
-        self.image=Image(self)#Creating the central widget which contains the image, the plot and the control widgets
+        self.image=Image(self,enable_manual_points=True)#Creating the central widget which contains the image, the plot and the control widgets
+        self.image.concatenate_manual_points=True
         self.image.queue=Queue.Queue()
         self.image.set_image(image)
         self.image.setFixedWidth(image.shape[0])

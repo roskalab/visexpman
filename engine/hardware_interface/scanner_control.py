@@ -6,8 +6,9 @@ Classes related to two photon scanning:
 '''
 
 import numpy, unittest, pdb, itertools,multiprocessing,time,os,tables
+import traceback
 from visexpman.engine.generic import utils, fileop
-from visexpman.engine.hardware_interface import instrument,daq
+from visexpman.engine.hardware_interface import instrument,daq, stage_control
 try:
     import PyDAQmx
     import PyDAQmx.DAQmxConstants as DAQmxConstants
@@ -173,7 +174,7 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
     def __init__(self, ai_channels,  ao_channels, logfile, **kwargs):
         self.logfile=logfile
         self.queues={'command': multiprocessing.Queue(), 'response': multiprocessing.Queue(), 'data': multiprocessing.Queue(),\
-                        'rawimage':multiprocessing.Queue(), 'raw':multiprocessing.Queue()}
+                        'rawimage':multiprocessing.Queue(), 'raw':multiprocessing.Queue(), 'stage':multiprocessing.Queue()}
         instrument.InstrumentProcess.__init__(self, self.queues, logfile)
         daq.SyncAnalogIO.__init__(self,  ai_channels,  ao_channels,  kwargs['timeout'])
         self.kwargs=kwargs
@@ -186,11 +187,11 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
     def start(self):
         instrument.InstrumentProcess.start(self)
         
-    def start_(self, waveform, filename, data_format,offset=0, nframes=None):
+    def start_(self, waveform, filename, data_format,offset=0, nframes=None, zvalues=[]):
         """
         data_format: dictionary containing channels to be saved and boundaries
         """
-        self.queues['command'].put(('start', waveform, filename, data_format, offset, nframes))
+        self.queues['command'].put(('start', waveform, filename, data_format, offset, nframes, zvalues))
         
     def stop(self):
         self.queues['command'].put(('stop',))
@@ -263,6 +264,10 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
             self.running=False
             tlast=time.time()
             self.frame_counter=0
+            self.printl(self.kwargs)
+            if 'stage_port' in self.kwargs:
+                self.stage=stage_control.SutterStage(self.kwargs['stage_port'],  self.kwargs['stage_baudrate'])
+                self.stage.setnowait=True#Stage does not block at setting stage position
             while True:
                 now=time.time()
                 if now-tlast>10:
@@ -270,13 +275,20 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                     tlast=now
                 if not self.queues['command'].empty():
                     cmd=self.queues['command'].get()
-                    self.printl(cmd)
+                    self.printl(cmd[:3])
+                    self.printl(cmd[4:])
                     if cmd[0]=='start':
                         waveform=cmd[1]
                         filename=cmd[2]
                         self.data_format=cmd[3]
                         self.offset=cmd[4]
                         self.nframes=cmd[5]
+                        self.zvalues=cmd[6]
+                        if self.nframes is None and self.zvalues is not None:
+                            self.nframes=len(self.zvalues)+NFRAMES_SKIP_AT_SCANNING_START
+                        elif self.nframes is not None and self.zvalues is None:
+                            self.nframes+=NFRAMES_SKIP_AT_SCANNING_START
+                        self.printl(f'self.nframes: {self.nframes}')
                         self.binning_factor=int(self.kwargs['ai_sample_rate']/self.kwargs['ao_sample_rate'])
                         if filename is not None:
                             self.fh=tables.open_file(filename,'a')
@@ -293,7 +305,10 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                             if 'metadata' in self.data_format:
                                 for k, v in self.data_format['metadata'].items():
                                     setattr(self.fh.root.twopdata.attrs,k,v)
+                                if self.zvalues is not None and len(self.zvalues)>0:
+                                    setattr(self.fh.root.twopdata.attrs,'zvalues',self.zvalues)
                         else:
+                            self.nframes=None#if filename is not provided infinite recording is triggered
                             if hasattr(self, 'data_handle'):
                                 del self.data_handle
                         frame_rate= self.kwargs['ao_sample_rate']/waveform.shape[1]
@@ -315,6 +330,19 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                     elif cmd=='terminate':
                         self.printl('Terminating')
                         break
+                    elif cmd[0]=='read_z':
+                        z=self.stage.z
+                        self.printl(z)
+                        self.queues['stage'].put(z)
+                    elif cmd[0]=='set_z':
+                        self.stage.z=cmd[1]
+                    elif cmd[0]=='set_origin':
+                        self.stage.write(b'o\r')
+                        try:
+                            self.stage.check_response()
+                        except:
+                            self.queues['response'].put(traceback.format_exc())
+                        self.queues['response'].put(f'z Origin set: {self.stage.z} ustep')
                     else:
                         self.printl("Unknown command: {0}".format(cmd))
                 if self.running:
@@ -341,8 +369,23 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                             self.queues['rawimage'].put(self.rawimage)
                             if data_chunk[:2].min()<0:
                                 self.queues['response'].put(f'Negative voltate is detected: {data_chunk[:2].min()} V on PMT output, please adjust offset')
+                        if self.zvalues!=[] and self.zvalues is not None:
+                            previ=self.frame_counter-NFRAMES_SKIP_AT_SCANNING_START-1
+                            acti=self.frame_counter-NFRAMES_SKIP_AT_SCANNING_START
+                            if len(self.zvalues)>acti:
+                                actual_zvalue=self.zvalues[acti]
+                                if previ>0:
+                                    prevz=self.zvalues[previ]
+                                    setstage=actual_zvalue!=prevz
+                                else:
+                                    setstage=True
+                                if setstage:
+                                    self.stage.z=actual_zvalue
+                                    self.queues['response'].put(f'Stage is set to: {actual_zvalue}')
+                                    self.printl(f'Stage set to {actual_zvalue}')
                     if self.nframes is not None and self.nframes>0 and self.nframes<self.frame_counter:
                         self.stop_recording()
+                        self.printl('nframes recorded')
                         self.queues['response'].put('nframes recorded')
                 time.sleep(0.02)
             self.printl('Process done')
@@ -356,7 +399,11 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
     def stop_recording(self):
         self.printl("Stop recording")
         self.close_shutter()
-        readout=daq.SyncAnalogIO.stop(self)
+        #readout=daq.SyncAnalogIO.stop(self)
+        readout=None
+        self.analog_output.StopTask()
+        self.analog_input.StopTask()
+        self.printl("DAQ terminated")
         if hasattr(self,'data_handle'):
             if readout is not None and len(readout.shape)==2:#In some cases the last readut from daq has an extra dimension. Reason unknown
                 self.data2file(readout)
@@ -367,9 +414,102 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
             tifffile.imwrite(tifffn,data)
             self.printl(f'Saved to {tifffn}')
             self.printl('Closing file')
-        self.printl(f'Recorded {self.frame_counter} frames,  sent {self.ct} frames to GUI,  {self.cct} frames saved')
+        self.printl(f'Recorded {self.frame_counter} frames, sent {self.ct} frames to GUI, {self.cct} frames saved')
+        if self.zvalues!=[] and self.zvalues is not None:
+            self.stage.z=self.zvalues[0]
+            self.queues['response'].put('Stage set back to initial position')
         self.running=False
         
+    def set_origin(self):
+        self.queues['command'].put(('set_origin',))
+
+    def set_z(self, z):
+        self.queues['command'].put(('set_z',z))
+        
+    def read_z(self):
+        self.queues['command'].put(('read_z',))
+        t0=time.time()
+        while True:
+            time.sleep(0.5)
+            if not self.queues['stage'].empty():
+                break
+            if time.time()-t0>10:
+                break
+        if not self.queues['stage'].empty():
+            return self.queues['stage'].get()
+        
+def pmt2undistorted_image(filename, fcut=10e3):
+    '''
+    2p image is reconstructed from hdf5 file containing raw pmt signal and scanner position signals
+    Distortion coming from scanner motion is corrected. Position signal of each sweep of x scanner is
+    individually processed and the corresponding image line is calculated. This ensures that motion transients
+    are also taken into account.
+    
+    fcut: cutting frequency of low pass filter applied on pmt signal
+    '''
+    hh=tables.open_file(filename, 'r')
+    fsample=hh.root.twopdata.attrs.AI_SAMPLE_RATE
+    w=hh.root.twopdata.attrs['params_Scan_Width']
+    h=hh.root.twopdata.attrs['params_Scan_Height']
+    r=hh.root.twopdata.attrs['params_Resolution']
+    nxscans_flyback=hh.root.twopdata.attrs['params_Advanced_Y_Return_Time']
+    raw=hh.root.raw.read()
+    frames=[]
+    distorted_frames=[]
+    #Filter xpos signal with butterworth filter
+    import scipy.signal
+    lowpassfilter=scipy.signal.butter(4, fcut/fsample, btype='low')
+    for fi in range(raw.shape[0]):
+        pmt0=raw[fi,0]
+        pmt1=raw[fi,1]
+        pmt=numpy.array([pmt0,pmt1])
+        xpos=raw[fi,2,:]
+        xposfilt=scipy.signal.filtfilt(lowpassfilter[0], lowpassfilter[1], xpos).real
+        #y signal would be ignored, since each line is separately extracted
+        #Split image to periods by finding peaks
+        pos_peaks=scipy.signal.find_peaks(xposfilt)[0]
+        neg_peaks=scipy.signal.find_peaks(-xposfilt)[0]
+        if pos_peaks.shape[0]!=w*r+nxscans_flyback!=neg_peaks.shape[0]:
+            print(f'Incorrect number of scans in position signal,pos_peaks: {pos_peaks.shape}, neg_peaks: {neg_peaks.shape}, {w}, {r}, {nxscans_flyback} ')
+            tp=hh.root.twopdata.read()[:, :, :, 0]
+            hh.close()
+            distorted=True
+            return tp, tp, distorted
+            #raise ValueError(f'Incorrect number of scans in position signal,pos_peaks: {pos_peaks.shape}, neg_peaks: {neg_peaks.shape}, {w}, {r}, {nxscans_flyback} ')
+        #Remove flyback scans
+        pos_peaks=pos_peaks[:int(w*r)]
+        neg_peaks=neg_peaks[:int(w*r)]
+        image_lines=[]
+        orig_image_lines=[]
+        for s, e in zip(neg_peaks, pos_peaks):
+            #Extract each line and interpolate pmt signals
+            posi=xposfilt[s:e]
+            pmti=pmt[0, s:e]
+            intp=scipy.interpolate.interp1d(posi, pmti, kind='cubic')
+            virtual_position_vector=numpy.linspace(posi.min(), posi.max(), int(r*w))
+            image_lines.append(intp(virtual_position_vector))
+            orig_image_lines.append(pmti)
+        image=numpy.array(image_lines)
+        frames.append(image)
+        min_line_length=min([i.shape[0] for i in orig_image_lines])
+        orig_image=numpy.array([l[:min_line_length] for l in orig_image_lines])
+        distorted_frames.append(orig_image)
+    distorted_frames_shape=min([i.shape for i in distorted_frames])
+    distorted_frames=numpy.array([d[:distorted_frames_shape[0], :distorted_frames_shape[1]] for d in distorted_frames])
+    frames=numpy.array(frames)
+    hh.close()
+    distorted=False
+    return frames, distorted_frames, distorted
+    if 0:
+        from pylab import show, imshow, subplot, suptitle
+        suptitle('Raw vs undistorted images')
+        nlines=min(frames.shape[0],2)
+        for nli in range(nlines):
+            subplot(nlines, 2,  nli*2+1)
+            imshow(distorted_frames[nli])
+            subplot(nlines, 2, nli*2+2)
+            imshow(frames[nli])
+        show()
         
             
 class Test(unittest.TestCase):
@@ -531,7 +671,7 @@ class Test(unittest.TestCase):
                 except:
                     pdb.set_trace()
                 
-    @unittest.skip('')    
+    @unittest.skip('')
     def test_rawpmt2img(self):
         '''
         Generate valid scanning waveforms and feed them as raw pmt signals
@@ -566,6 +706,7 @@ class Test(unittest.TestCase):
             except:
                 pass
                 
+    @unittest.skip('')
     def test_waveform_generator_test_bench(self):
         fsample=400e3
         scan_voltage_um_factor=3.0/256
@@ -588,5 +729,22 @@ class Test(unittest.TestCase):
         show()
 #        pdb.set_trace()
 
+    def test_image_correction_scanner_position_signal(self):
+        fn='C:\\data\\2p\\2p_TEST5_202110131558347.hdf5'
+        folder=r'G:\My Drive\2p'
+        fsample=250e3
+        files=[fn]
+        files.extend(fileop.listdir(folder))
+        for fn in files:
+            t0=time.time()
+            try:
+                pmt2undistorted_image(fn)
+            except:
+                import traceback
+                print(traceback.format_exc())
+            print(fn, time.time()-t0)
+            
+            
 if __name__ == "__main__":
     unittest.main()
+    

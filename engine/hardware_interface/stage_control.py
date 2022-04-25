@@ -357,7 +357,7 @@ class SutterStage(serial.Serial):
     """
     def __init__(self, port, baudrate):
         #TODO: set speed at init
-        serial.Serial.__init__(self,  port, baudrate=9600, timeout=1)
+        serial.Serial.__init__(self,  port, baudrate=9600, timeout=10)
         time.sleep(2)
         try:
             self.reset_controller()
@@ -365,8 +365,13 @@ class SutterStage(serial.Serial):
             #self.write(b'b\r')#Set to relative mode
             self.write(b'a\r')#Set to absolue mode
             self.check_response()
+            self.write('V\x03\x00\r'.encode())#Set speed to 700 ustep/second
+            self.check_response()
+            self.setnowait=False
+            initial=self.z
         except:
-            import pdb
+            import pdb, traceback
+            print(traceback.format_exc())
             pdb.set_trace()
         pass
             
@@ -401,8 +406,18 @@ class SutterStage(serial.Serial):
     @z.setter
     def z(self, value):#self.write(b'm'+struct.pack('<iii', 0, 0, 0)+b'\r');self.read(1)
         cmd=struct.pack('<iii', 0, 0, int(value))
+        deltaz=abs(value-self.xyz[2])
+        #print(deltaz)
+        if deltaz>30000:
+            raise ValueError(f'too big movement: {deltaz}')
         self.write(b'm'+cmd+b'\r')
-        self.check_response()
+        self.xyz=(self.xyz[0], self.xyz[1], value)
+        if not self.setnowait:
+            self.check_response()
+        else:
+            if self.in_waiting>0:
+                self.read(self.in_waiting)
+        
 
 class MotorTestConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):
@@ -553,7 +568,7 @@ if test_mode:
                 
 class TestSutter(unittest.TestCase):
     def test(self):
-        stage = SutterStage("COM10", 9600)
+        stage = SutterStage("COM4", 9600)
         print(stage.z)
         stage.z=3000
         self.assertEqual(stage.z, 3000)
