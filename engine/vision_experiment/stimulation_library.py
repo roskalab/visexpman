@@ -166,6 +166,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self.send({'plot': [time.time(), 1]})
         if hasattr(self.log, 'info'):
             self.log.info('{0} block started' .format(block_name), source='stim')
+        self.screen.block_bitcode=True
                 
     def block_end(self, block_name = 'stimulus function'):
         if hasattr(self, 'digital_io'):
@@ -175,6 +176,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self.send({'plot': [time.time(), 0]})
         if hasattr(self.log, 'info'):
             self.log.info('{0} block ended' .format(block_name), source='stim')
+        self.screen.block_bitcode=False
             
     def draw(self):
         '''
@@ -613,7 +615,6 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self.shape_color=colors.convert_color(color[0], self.config)
         else:
             self.shape_color=colors.convert_color(color, self.config)
-        glColor3fv(self.shape_color)
         if background_color != None:
             background_color_saved = glGetFloatv(GL_COLOR_CLEAR_VALUE)
             converted_background_color = colors.convert_color(background_color, self.config)
@@ -622,6 +623,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             converted_background_color = colors.convert_color(self.config.BACKGROUND_COLOR, self.config)
         self.shape_vertices=vertices
         glEnableClientState(GL_VERTEX_ARRAY)
+        vertices=self.screen.merge_vertices(vertices)
         glVertexPointerf(vertices)
         frame_i = 0
         self.t0=time.time()
@@ -629,9 +631,12 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             if not part_of_drawing_sequence:
                 glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             self.draw()#Allow user to draw something on top of shape
+            self.screen.draw_bitcode(self.screen.frame_counter%256, self.screen.block_bitcode)
             if shape_type != 'annulus':
                 if hasattr(color,  'shape') and len(color.shape) == 2:
                     glColor3fv(colors.convert_color(color[frame_i], self.config))
+                else:
+                    glColor3fv(colors.convert_color(self.shape_color, self.config))
                 if number_of_positions == 1:
                     if shape_type == 'star':#opengl cannot draw concave shapes
                         for i in range(ncorners):
@@ -1079,6 +1084,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         else:
             vertices=rect
         glEnableClientState(GL_VERTEX_ARRAY)
+        vertices=self.screen.merge_vertices(vertices)
         glVertexPointerf(vertices)
         glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[1], texture.shape[0], 0, GL_RGB, GL_FLOAT, texture)
         start_time = time.time()
@@ -1103,6 +1109,9 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                     glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[1], texture.shape[0], 0, GL_RGB, GL_FLOAT, texture1)
             if not part_of_drawing_sequence:
                 glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            
+            self.screen.draw_bitcode(self.screen.frame_counter%256, self.screen.block_bitcode)
+            
             if mask_size!=None:
                 glColor3fv(colors.convert_color(mask_color, self.config))
                 for shi in range(int(vertices.shape[0]/4-1)):

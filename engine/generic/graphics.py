@@ -51,8 +51,52 @@ def get_frame(config):
     frame = frame.transpose(Image.FLIP_TOP_BOTTOM)
     return numpy.asarray(frame).copy()
     
+class BitCode(object):
+    def __init__(self):
+        self.bitcode_nbits = 18
+        
+        self.bitcode_pixel_size = {'col':10 , 'row':10}
+        #generate vertices
+        self.bitcode_vertices_start_index = 0
+        self.bitcode_vertices = numpy.empty([0, 2],dtype=float)
+        START_COL = -(self.screen_resolution['col']/2)
+        START_ROW = (self.screen_resolution['row']/2)
+        center  = {'col':0 , 'row':0}
+        for bit in range(self.bitcode_nbits):
+            center['col'] = START_COL + self.bitcode_pixel_size[ 'col']/2 + bit * self.bitcode_pixel_size[ 'col']
+            center['row'] = START_ROW - self.bitcode_pixel_size[ 'row']/2
+            self.bitcode_vertices = numpy.append(self.bitcode_vertices, self.get_rectangle_vertice(center, self.bitcode_pixel_size), 0)
+        #import pdb; pdb.set_trace()
+    
+    def get_rectangle_vertice(self,center, size):
+        vertice = numpy.array([
+                                [center['col'] + 0.5 * size['col'], center['row'] - 0.5 * size['row']],
+                                [center['col'] + 0.5 * size['col'], center['row'] + 0.5 * size['row']],
+                                [center['col'] - 0.5 * size['col'], center['row'] + 0.5 * size['row']],
+                                [center['col'] - 0.5 * size['col'], center['row'] - 0.5 * size['row']],
+                                ])
+        return vertice
+        
+        
+    def merge_vertices(self, vertices):
+        self.bitcode_vertices_start_index = len(vertices)
+        vertices = numpy.append(vertices, self.bitcode_vertices,0)
+        #import pdb; pdb.set_trace()
+        return vertices
+    
+    def draw_bitcode(self, frame_cnt, block_bit):
+        bit_pattern = (int(block_bit == True)<<16) | frame_cnt<<8 | 0xD5
+        for bit in range(self.bitcode_nbits):
+            if((bit_pattern & (1<<bit))):
+                 color = [1,1,1]
+            else:
+                 color = [0,0,0]
+            glColor3fv(color)
+            glDrawArrays(GL_POLYGON,  self.bitcode_vertices_start_index + bit*4, 4)
+        
+                    
 
-class Screen(object):
+class Screen(BitCode):
     """
     Use cases:
     - Standalone, interactive applications with animation
@@ -109,6 +153,8 @@ class Screen(object):
         self.scale_step = 0.05
         self.init_flip_variables()
         self.frame_counter = 0
+        self.block_bitcode = False
+        BitCode.__init__(self)
         if self.init_mode == 'create_screen':
             glutInit()
             #create screen using parameters in config
@@ -247,6 +293,7 @@ class Screen(object):
         required frame rate
         '''
         self.before_flip()
+        self.frame_counter = self.frame_counter + 1
         #TODO: mac needs the delay
         if hasattr(self.config, 'INSERT_FLIP_DELAY') and self.config.INSERT_FLIP_DELAY:
            if self.config.ALTERNATIVE_TIMING:
@@ -515,19 +562,19 @@ class Screen(object):
         
         return vertices
         
-    def draw_bitcode(self, cnt_value):
-        START_COL = -(self.screen_resolution['col']/2)
-        START_ROW =   (self.screen_resolution['row']/2)-0
-        SIZE = {'col':10 , 'row':10}
-        center  = {'col':0 , 'row':0}
-        for bit in range(8):
-            if((cnt_value & (1<<bit))):
-                color = [1,1,1]
-            else:
-                color = [0,0,0]
-            center['col'] = START_COL + SIZE[ 'col']/2 + bit * SIZE[ 'col']
-            center['row'] = START_ROW - SIZE[ 'row']/2
-            self.render_rectangle(center ,  SIZE,  color)    
+    # def draw_bitcode(self, cnt_value):
+        # START_COL = -(self.screen_resolution['col']/2)
+        # START_ROW =   (self.screen_resolution['row']/2)-0
+        # SIZE = {'col':10 , 'row':10}
+        # center  = {'col':0 , 'row':0}
+        # for bit in range(8):
+            # if((cnt_value & (1<<bit))):
+                # color = [1,1,1]
+            # else:
+                # color = [0,0,0]
+            # center['col'] = START_COL + SIZE[ 'col']/2 + bit * SIZE[ 'col']
+            # center['row'] = START_ROW - SIZE[ 'row']/2
+            # self.render_rectangle(center ,  SIZE,  color)    
         
         
     #Placeholder functions that user can overdefine
@@ -536,11 +583,13 @@ class Screen(object):
         pass
         
     def before_flip(self):
-        self.draw_bitcode(self.frame_counter%256)
-        self.frame_counter = self.frame_counter + 1
+        pass
+        #self.draw_bitcode(self.frame_counter%256, self.block_bitcode)
         
     def after_flip(self):
         pass
+        #self.draw_bitcode(self.frame_counter%256)
+        #self.frame_counter = self.frame_counter + 1
     
     def draw_scene(self):
         pass
