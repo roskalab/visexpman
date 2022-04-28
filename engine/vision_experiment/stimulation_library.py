@@ -259,14 +259,19 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if count and save_frame_info:
             self.log.info('show_fullscreen(' + str(duration) + ', ' + str(color_to_set) + ')', source='stim')
             self._save_stimulus_frame_info(inspect.currentframe())
+        vertices=self.screen.merge_vertices(numpy.empty([0,2]))
+        glEnableClientState(GL_VERTEX_ARRAY)
+        glVertexPointerf(vertices)
         self.screen.clear_screen(color = color_to_set)
         if duration == 0.0:
+            self.screen.draw_bitcode(self.screen.frame_counter%256, self.screen.block_bitcode)
             if flip:
                 self._flip(frame_timing_pulse = frame_timing_pulse, count = count)
         elif duration == -1.0:
             i = 0
             while not self.abort:
                 self.screen.clear_screen(color = color_to_set)
+                self.screen.draw_bitcode(self.screen.frame_counter%256, self.screen.block_bitcode)
                 if flip:
                     self._flip(frame_timing_pulse = True, count = count)
                 i += 1
@@ -274,10 +279,13 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             nframes = int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)
             for i in range(nframes):
                 self.screen.clear_screen(color = color_to_set)
+                self.screen.draw_bitcode(self.screen.frame_counter%256, self.screen.block_bitcode)
                 if flip:
                     self._flip(frame_timing_pulse = frame_timing_pulse, count = count)
                 if self.abort:
                     break
+                    
+        glDisableClientState(GL_VERTEX_ARRAY)
         #set background color to the original value
         glClearColor(self.config.BACKGROUND_COLOR[0], self.config.BACKGROUND_COLOR[1], self.config.BACKGROUND_COLOR[2], 0.0)
         if count and save_frame_info:

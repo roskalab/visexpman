@@ -55,7 +55,7 @@ class BitCode(object):
     def __init__(self):
         self.bitcode_nbits = 18
         
-        self.bitcode_pixel_size = {'col':10 , 'row':10}
+        self.bitcode_pixel_size = {'col':1 , 'row':1}
         #generate vertices
         self.bitcode_vertices_start_index = 0
         self.bitcode_vertices = numpy.empty([0, 2],dtype=float)
