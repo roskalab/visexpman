@@ -478,6 +478,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         try:
             if self.settings['params/Time lapse/Enable']:
                 now=time.time()
+                self.timelapse_folder=self.data_folder
                 if not hasattr(self,  'last_scan'):
                     self.last_scan=now-self.settings['params/Time lapse/Interval']#Ensure that z stack is triggered at the very beginning of the timelapse
                 dt=now-self.last_scan
@@ -942,6 +943,10 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             name=self.settings['params/Name']
             self.zstack_filename=experiment_data.get_recording_path(self.machine_config,params, f'zstack_{name}')
             self.zstack_filename=os.path.join(self.data_folder, os.path.basename(self.zstack_filename))
+            if not self.settings['params/Time lapse/Enable'] and self.timelapse_folder==self.data_folder:
+                reply = QtGui.QMessageBox.question(self, 'Confirm:', 'Saving z stack to timelapse folder is not recommended. Merging timelapse recordings could fail. Continue?', QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
+                if reply == QtGui.QMessageBox.No:
+                    return
             s=self.settings['params/Z Stack/Start']
             e=self.settings['params/Z Stack/End']
             st=self.settings['params/Z Stack/Step']
@@ -1085,13 +1090,12 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 self.bgp_tlast=now
             else:
                 return
-            print('00')
+            #print('00')
             self.socket_handler()
-            self.z_stack_runner()   
             self.timelapse_handler()
-            print(15)
+            #print(15)
             self.error_checker()
-            print(16)
+            #print(16, self.twop_running)
         except:
             if not hasattr(self, 'background_process_error_shown'):
                 self.printc(traceback.format_exc())
@@ -1132,6 +1136,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.statusbar.twop_status.setStyleSheet('background:yellow;')
         #Check  dimension of data in files, raise error if incorrect files found
         files=[f for f in fileop.listdir(df) if os.path.splitext(f)[1]=='.hdf5']
+        files.sort()
         self.printc(f'Checking {len(files)} files')
         self.statusbar.progressbar.setRange(0, len(files))
         self.shapes=[]
@@ -1158,10 +1163,13 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 res=process_zstack(files[i])
                 if res is None:
                     self.printc(f'Skip {files[i]},  already processed?,  TODO: handle already processed files')
+                    self.statusbar.progressbar.setValue(i+1)
+                    QtCore.QCoreApplication.instance().processEvents()
                     continue
                 else:
-                    zstack, zvalues, distorted=res
-                self.zstacks.append(zstack)
+                    self.zstack, zvalues, distorted=res
+                print(self.zstack.shape, files[i])
+                self.zstacks.append(self.zstack)
                 self.distorted_s.append(distorted)
                 ds=os.path.splitext(os.path.basename(files[i]))[0].split('_')[-1]
                 self.timelapse_timepoints.append(utils.datestring2timestamp(ds[:-1],format="%Y%m%d%H%M%S"))
@@ -1203,7 +1211,7 @@ def process_zstack(filename, max_pmt_voltage=8):
     h=tables.open_file(filename, 'a')
     if hasattr(h.root,'zstack'):
         print('Z stack already calculated')
-        return
+        return h.root.zstack.read(), h.root.zstack.attrs.zvalues, distorted
     transient_indexes=numpy.nonzero(numpy.diff(h.root.twopdata.attrs.zvalues))[0]
     transient_indexes=numpy.insert(transient_indexes,0,0)
     valid_start_indexes=transient_indexes+h.root.twopdata.attrs.stepsamples
@@ -1216,7 +1224,12 @@ def process_zstack(filename, max_pmt_voltage=8):
         raise ValueError('invalid number of z depths')
     filters = tables.Filters(complevel=5, complib='zlib', shuffle = 1)
     atom = tables.Float32Atom()
-    zstackh = h.create_carray(h.root, 'zstack', atom, zstack.shape,filters=filters)
+    try:
+        zstackh = h.create_carray(h.root, 'zstack', atom, zstack.shape,filters=filters)
+    except:
+        import traceback
+        print(traceback.format_exc())
+        return
     zstackh[:, :, :, :]=zstack
     setattr(zstackh.attrs, 'zvalues', zvalues)
     h.close()

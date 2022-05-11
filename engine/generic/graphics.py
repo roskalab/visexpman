@@ -467,6 +467,7 @@ class Screen(object):
         glDrawArrays(GL_POLYGON,  0, 4)
         glDisableClientState(GL_VERTEX_ARRAY)
         
+        
     def create_texture(self):
         pass
         
@@ -528,7 +529,6 @@ class Screen(object):
             center['col'] = START_COL + SIZE[ 'col']/2 + bit * SIZE[ 'col']
             center['row'] = START_ROW - SIZE[ 'row']/2
             self.render_rectangle(center ,  SIZE,  color)    
-        
         
     #Placeholder functions that user can overdefine
     def render_before_set_view(self):        

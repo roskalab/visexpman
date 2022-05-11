@@ -99,8 +99,6 @@ class DaqGui(gui.SimpleGuiWindow):
         fh.close()
         self.notify('Information', f'Data is saved to {fn}')
         
-        
-        
     def exit_action(self):
         self.close()
         

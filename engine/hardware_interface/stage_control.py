@@ -365,7 +365,7 @@ class SutterStage(serial.Serial):
             #self.write(b'b\r')#Set to relative mode
             self.write(b'a\r')#Set to absolue mode
             self.check_response()
-            self.write('V\x03\x00\r'.encode())#Set speed to 700 ustep/second
+            self.write('V\x02\x00\r'.encode())#Set speed to 500 ustep/second
             self.check_response()
             self.setnowait=False
             initial=self.z

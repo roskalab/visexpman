@@ -215,9 +215,9 @@ class SimpleGuiWindow(Qt.QMainWindow):
         Qt.QMainWindow.__init__(self)
         if not hasattr(self, 'logfile'):
             self.logfile = os.path.join(logfolder, 'log_{0}.txt'.format(utils.timestamp2ymdhms(time.time(), filename=True)))
-        logging.basicConfig(filename= self.logfile,
-                    format='%(asctime)s %(levelname)s\t%(message)s',
-                    level=logging.INFO)
+#        logging.basicConfig(filename= self.logfile,
+#                    format='%(asctime)s %(levelname)s\t%(message)s',
+#                    level=logging.INFO)
         self.logtext=''
         self.debugw = Debug(self)
         self.logw=self.debugw.log
