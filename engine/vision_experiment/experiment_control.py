@@ -524,6 +524,8 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         self._blocks2table()
         variables2save = ['parameters', 'stimulus_frame_info', 'configs', 'user_data', 'software_environment', 'block', 'experiment_start_timestamp', 'arduino_sync',  'arduino_timestamps']#['experiment_name', 'experiment_config_name', 'frame_times']
 #        if self.machine_config.EXPERIMENT_FILE_FORMAT == 'hdf5':
+        if not os.path.exists(os.path.dirname(self.outputfilename)):
+            os.makedirs(os.path.dirname(self.outputfilename))
         self.datafile = experiment_data.CaImagingData(self.outputfilename)
         self._prepare_data2save()
         if hasattr(self.datafile, 'block_timestamps'):
