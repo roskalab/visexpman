@@ -7,6 +7,9 @@ except:
     print('pyserial not installed')
 
 import unittest
+import PyDAQmx
+import PyDAQmx.DAQmxConstants as DAQmxConstants
+import PyDAQmx.DAQmxTypes as DAQmxTypes
 from visexpman.engine.hardware_interface import instrument
 import visexpman.engine.generic.configuration
 from visexpman.engine.generic import utils
@@ -365,7 +368,7 @@ class SutterStage(serial.Serial):
             #self.write(b'b\r')#Set to relative mode
             self.write(b'a\r')#Set to absolue mode
             self.check_response()
-            self.write('V\x02\x00\r'.encode())#Set speed to 500 ustep/second
+            self.write('V\x01\x00\r'.encode())#Set speed to 250 ustep/second
             self.check_response()
             self.setnowait=False
             initial=self.z
@@ -418,6 +421,21 @@ class SutterStage(serial.Serial):
             if self.in_waiting>0:
                 self.read(self.in_waiting)
         
+class EncoderReader(object):
+    def __init__(self, devref):
+        self.ctr=PyDAQmx.Task()
+        self.ctr.CreateCIAngEncoderChan(devref,"enc",DAQmxConstants.DAQmx_Val_X4, 0, 0.0, DAQmxConstants.DAQmx_Val_AHighBHigh, DAQmxConstants.DAQmx_Val_Degrees, 8192, 0.0,"")
+        self.ctr.StartTask()
+        self.readbuf = DAQmxTypes.ctypes.c_long()
+        self.data = numpy.zeros((1,), dtype=numpy.float64)
+        
+    def read(self):
+        self.ctr.ReadCounterF64(DAQmxConstants.DAQmx_Val_Auto, -1, self.data, 1000, DAQmxTypes.byref(self.readbuf), None)
+        print('encoder reader', self.data)
+        return self.data[0]
+
+    def close(self):
+        self.ctr.ClearTask()
 
 class MotorTestConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):

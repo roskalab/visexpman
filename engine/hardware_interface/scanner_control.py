@@ -268,6 +268,7 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
             if 'stage_port' in self.kwargs:
                 self.stage=stage_control.SutterStage(self.kwargs['stage_port'],  self.kwargs['stage_baudrate'])
                 self.stage.setnowait=True#Stage does not block at setting stage position
+                self.encoder=stage_control.EncoderReader(self.kwargs['encoder_channel'])
             while True:
                 now=time.time()
                 if now-tlast>10:
@@ -325,6 +326,7 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                         self.running=True
                         self.ct=0
                         self.cct=0
+                        self.encoder_readout=[]
                     elif cmd[0]=='stop':
                         self.stop_recording()
                     elif cmd=='terminate':
@@ -380,6 +382,7 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                                 else:
                                     setstage=True
                                 if setstage:
+                                    self.encoder_readout.append(self.encoder.read())
                                     self.stage.z=actual_zvalue
                                     self.queues['response'].put(f'Stage is set to: {actual_zvalue}')
                                     self.printl(f'Stage set to {actual_zvalue}')
@@ -391,6 +394,7 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
             self.printl('Process done')
             #Clean up
             self.digital_output.ClearTask()
+            self.encoder.close()
         except:
             import traceback
             self.printl(traceback.format_exc(),loglevel='error')

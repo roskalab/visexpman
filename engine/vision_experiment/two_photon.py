@@ -328,7 +328,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                                                                         ao_sample_rate=self.machine_config.AO_SAMPLE_RATE,
                                                                         shutter_port=self.machine_config.SHUTTER_PORT, 
                                                                         stage_port=self.machine_config.STAGE_PORT, 
-                                                                        stage_baudrate=self.machine_config.STAGE_BAUDRATE)
+                                                                        stage_baudrate=self.machine_config.STAGE_BAUDRATE, 
+                                                                        encoder_channel=self.machine_config.ENCODER_CHANNEL)
         else:
             self.aio=scanner_control.SyncAnalogIORecorder(self.machine_config.AI_CHANNELS,
                                                                         self.machine_config.AO_CHANNELS,
@@ -943,13 +944,15 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             name=self.settings['params/Name']
             self.zstack_filename=experiment_data.get_recording_path(self.machine_config,params, f'zstack_{name}')
             self.zstack_filename=os.path.join(self.data_folder, os.path.basename(self.zstack_filename))
-            if not self.settings['params/Time lapse/Enable'] and self.timelapse_folder==self.data_folder:
+            if hasattr(self, 'timelapse_folder') and not self.settings['params/Time lapse/Enable'] and self.timelapse_folder==self.data_folder:
                 reply = QtGui.QMessageBox.question(self, 'Confirm:', 'Saving z stack to timelapse folder is not recommended. Merging timelapse recordings could fail. Continue?', QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
                 if reply == QtGui.QMessageBox.No:
                     return
             s=self.settings['params/Z Stack/Start']
             e=self.settings['params/Z Stack/End']
             st=self.settings['params/Z Stack/Step']
+            if e>s:
+                raise ValueError('Only downward motion allowed. Ensure that start position is higher than end position')
             self.depths=numpy.linspace(s, e, int(abs(s-e)/st+1))
             steptime=1 if st<1000 else st/1000
             steptime*=4
@@ -1154,7 +1157,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             QtCore.QCoreApplication.instance().processEvents()
         if max([s[1:3] for s in self.shapes])!=min([s[1:3] for s in self.shapes]):
             raise ValueError('Not all files have the same scan windows')
-        self.printc('Undistort images and remove transient images')
+        self.printc(f'Undistort images and remove transient images in {df}')
         self.zstacks=[]
         self.timelapse_timepoints=[]
         self.distorted_s=[]
