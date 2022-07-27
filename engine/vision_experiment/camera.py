@@ -225,10 +225,12 @@ class Camera(gui.VisexpmanMainWindow):
 #                                ai_record_time=self.machine_config.SYNC_RECORDING_BUFFER_TIME, timeout = 10) 
                 msg='Camera&Sync recording'
             else:
+                self.aifix=False
                 msg='Camera recording'
             if hasattr(experiment_parameters, 'keys') and 'eyecamfilename' in experiment_parameters:
-                raise NotImplementedError('Fix this!')
-                self.fn=experiment_parameters['eyecamfilename']
+                self.cam1fn=experiment_parameters['eyecamfilename']
+                if self.machine_config.CAMERA2_ENABLE:
+                    raise NotImplementedError('Fix this!')
             else:
                 if not self.machine_config.ENABLE_USER_FOLDER:
                     outfolder=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, utils.timestamp2ymd(time.time(), separator=''))
@@ -238,7 +240,8 @@ class Camera(gui.VisexpmanMainWindow):
                     os.makedirs(outfolder)
                 id=experiment_data.get_id()
                 self.cam1fn=experiment_data.get_recording_path(self.machine_config, {'outfolder': outfolder,  'id': id, 'tag': self.experiment_name_tag},postfix = self.machine_config.CAM1FILENAME_TAG,extension='.mp4')
-                self.cam2fn=experiment_data.get_recording_path(self.machine_config, {'outfolder': outfolder,  'id': id, 'tag': self.experiment_name_tag},postfix = self.machine_config.CAM2FILENAME_TAG,extension='.mp4')
+                if self.machine_config.CAMERA2_ENABLE:
+                    self.cam2fn=experiment_data.get_recording_path(self.machine_config, {'outfolder': outfolder,  'id': id, 'tag': self.experiment_name_tag},postfix = self.machine_config.CAM2FILENAME_TAG,extension='.mp4')
                 self.metadatafn=fileop.replace_extension(self.cam1fn, '.mat').replace(self.machine_config.CAM1FILENAME_TAG, '_sync_info')
             if self.machine_config.ENABLE_OPENEPHYS_TRIGGER and self.parameters['params/Neuropixel SMA port TRIG'] :
                 tag=f'{id}_{self.experiment_name_tag}'
@@ -284,7 +287,8 @@ class Camera(gui.VisexpmanMainWindow):
                 self.printc('ZMQ trigger to NP/openephys')
             if self.parameters['params/Neuropixel SMA port TRIG'] or 1:
                 time.sleep(2)
-                daq.set_digital_line(self.machine_config.MC_STOP_TRIGGER,1)
+                if hasattr(self.machine_config, 'MC_STOP_TRIGGER'):
+                    daq.set_digital_line(self.machine_config.MC_STOP_TRIGGER,1)
             if self.machine_config.ENABLE_STIM_UDP_TRIGGER:
                 fusi_enable='fUSI' if  self.parameters['params/fUSI enable'] else ''
                 utils.send_udp(self.machine_config.STIM_COMPUTER_IP,self.machine_config.STIM_TRIGGER_PORT,f'start,{id}_{self.experiment_name_tag},{fusi_enable}')
@@ -317,8 +321,9 @@ class Camera(gui.VisexpmanMainWindow):
             if self.parameters['params/Neuropixel SMA port TRIG']:
                 self.printc('Stop Neuropixel')
             if self.parameters['params/Neuropixel SMA port TRIG'] or 1:
-                daq.set_digital_line(self.machine_config.MC_STOP_TRIGGER,0)
-                time.sleep(1)
+                if hasattr(self.machine_config, 'MC_STOP_TRIGGER'):
+                    daq.set_digital_line(self.machine_config.MC_STOP_TRIGGER,0)
+                    time.sleep(1)
             else:
                 if hasattr(self.machine_config, 'MC_STOP_TRIGGER'):
                     self.printc('Stop MC recording')
@@ -326,13 +331,6 @@ class Camera(gui.VisexpmanMainWindow):
                     time.sleep(0.5)
 #            self.printc(f'Recording time: {time.time()-self.t0}')
 #            self.printc(f'Available sync length: {self.sync.shape[0]/self.machine_config.SYNC_RECORDER_SAMPLE_RATE}')
-            if not self.aifix: #OBSOLETE
-                wait_time=round(5+time.time()-self.t0-(self.sync.shape[0]/self.machine_config.SYNC_RECORDER_SAMPLE_RATE))
-                if wait_time>150:
-                    wait_time+=100
-                self.printc(f'Wait {wait_time} seconds to read sync signal')
-                QtCore.QCoreApplication.instance().processEvents()
-                time.sleep(wait_time)
             if self.parameters['params/fUSI enable'] and not manual:
                 if not NEW_FUSI_CONTOL:
                     fusi_duration=self.parameters['params/fUSI Nimag']/self.parameters['params/fUSI sampling rate']
@@ -387,8 +385,8 @@ class Camera(gui.VisexpmanMainWindow):
                     self.printc(e)
                 if self.trigger_state=='stopped':#check if nvista camera was also recording
                     self.check_nvista_camera_timing()
-            else:
-                self.printc('mean: {0} Hz,  std: {1} ms'.format(1/numpy.mean(numpy.diff(self.ts)), 1000*numpy.std(numpy.diff(self.ts))))
+            # else:
+                # self.printc('mean: {0} Hz,  std: {1} ms'.format(1/numpy.mean(numpy.diff(self.ts)), 1000*numpy.std(numpy.diff(self.ts))))
             self.printc('Saved to {0}'.format(self.cam1fn))
 #            self.printc(('sync lenght after  camera',self.sync.shape))
 #            if self.camera_api=='tisgrabber':
@@ -424,8 +422,9 @@ class Camera(gui.VisexpmanMainWindow):
                         self.printc(traceback.format_exc())
             import scipy.io
             self.matdata['software']=experiment_data.pack_software_environment()
-            scipy.io.savemat(self.metadatafn, self.matdata, long_field_names=True)
-            self.printc(f'Metadata saved to {self.metadatafn}')
+            if self.machine_config.ENABLE_SYNC=='camera':
+                scipy.io.savemat(self.metadatafn, self.matdata, long_field_names=True)
+                self.printc(f'Metadata saved to {self.metadatafn}')
             if 0 and self.machine_config.ENABLE_OPENEPHYS_TRIGGER:
                 self.printc(f"Expected frame rate: {self.parameters['params/Frame Rate']} Hz,  measured: {self.frequency} Hz, std: {self.frequency_std}")
                 if self.video_frame_indexes[0]<10e3*self.machine_config.OPENEPHYS_PRETRIGGER_TIME:
@@ -449,7 +448,7 @@ class Camera(gui.VisexpmanMainWindow):
             
             self.triggered_recording=False
             #TMP:
-            if not self.aifix or 1:
+            if self.machine_config.ENABLE_SYNC=='camera' :
                 self.plotw(self.sync, self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
         except:
             e=traceback.format_exc()
@@ -726,7 +725,7 @@ class Camera(gui.VisexpmanMainWindow):
                     frame=frame[self.parameters['ROI x1']:self.parameters['ROI x2'],self.parameters['ROI y1']:self.parameters['ROI y2']]
                 f=numpy.copy(frame)
                 self.f=f
-                if self.machine_config.PLATFORM=='behav':
+                if hasattr(self.machine_config,'TRACK_ANIMAL') and self.machine_config.TRACK_ANIMAL:
                     if self.recording or self.parameters.get('params/Show color LEDs', False):
                         try:
                             result, self.position, self.red_angle, self.red, self.green, self.blue, debug=behavioral_data.mouse_head_direction(f, roi_size=self.parameters['params/ROI size'], threshold=self.parameters['params/Threshold'],  saturation_threshold=0.6, value_threshold=0.4)

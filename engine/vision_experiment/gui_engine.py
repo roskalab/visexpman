@@ -615,7 +615,7 @@ class ExperimentHandler(object):
                         time.sleep(10)
                         shutil.copy(self.current_experiment_parameters['mcd_file'], dst)
                     except:
-                    if self.ask4confirmation('Stop MC recording manually. Continue with moving and renaming mcd file?'):
+                        if self.ask4confirmation('Stop MC recording manually. Continue with moving and renaming mcd file?'):
                             time.sleep(2)
                             try:
                                 shutil.copy(self.current_experiment_parameters['mcd_file'], dst)

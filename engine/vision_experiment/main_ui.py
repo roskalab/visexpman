@@ -926,7 +926,7 @@ class MainUI(gui.VisexpmanMainWindow):
                     {'name': 'Motor Positions', 'type': 'str', 'value': ''},
                     ]},
             )
-        elif self.machine_config.PLATFORM=='resonant':
+        elif self.machine_config.PLATFORM == 'resonant':
             self.params_config[0]['expanded']=True
             self.params_config[0]['children'].append({'name': 'Enable Galvo', 'type': 'bool', 'value': False})
             self.params_config[0]['children'].append({'name': 'Runwheel attached', 'type': 'bool', 'value': False})
