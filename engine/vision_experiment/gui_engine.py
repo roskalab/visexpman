@@ -747,6 +747,22 @@ class ExperimentHandler(object):
                     if not os.path.exists(outfile):
                         self.printc(f'{outfile} is missing')
                     fileop.merge_hdf5_files(self.daqdatafile.filename, outfile)
+                    if 'WAVEFORM' in self.stimulus_config:
+                        self.printc('Save machine config')
+                        hh=hdf5io.Hdf5io(outfile)
+                        hh.software_environment=experiment_data.pack_software_environment()
+                        hh.machine_config=self.machine_config.todict()
+                        if 'GAMMA_CORRECTION' in hh.machine_config:
+                            del hh.machine_config['GAMMA_CORRECTION']
+                        hh.parameters=self.current_experiment_parameters
+                        kdel=[]
+                        for k, v in hh.parameters.items():
+                            if v is None:
+                                kdel.append(k)
+                        for k in kdel:
+                            del hh.parameters[k]
+                        hh.save(['software_environment', 'machine_config', 'parameters'])
+                        hh.close()
                     self.printc('Sync data merged to {0}'.format(outfile))
                     experiment_data.hdf52mat(outfile, scale_sync=True)
                     self.printc('{0} converted to mat'.format(outfile))
@@ -963,6 +979,8 @@ class ExperimentHandler(object):
             
     def _stop_sync_recorder(self):
         if self.sync_recording_started:
+            time.sleep(2)#Ensure that last frame is acquired
+            self.read_sync_recorder()
             self.sync_recording_started=False
             res=self.sync_recorder.stop_daq()
             try:
@@ -2038,7 +2056,10 @@ class Analysis(object):
                 pass
             else:
                 raise NotImplementedError(sync.dtype.name)
-            fs=h.findvar('configs')['machine_config']['SYNC_RECORDER_SAMPLE_RATE']
+            try:
+                fs=h.findvar('configs')['machine_config']['SYNC_RECORDER_SAMPLE_RATE']
+            except TypeError:
+                fs=h.findvar('machine_config')['SYNC_RECORDER_SAMPLE_RATE']
             x=[]
             y=[]
             t=numpy.arange(sync.shape[0])*(1.0/fs)
