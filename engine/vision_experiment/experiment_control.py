@@ -551,8 +551,10 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self.datafile.save(v)
         #[self.datafile.save(v) for v in variables2save if hasattr(self.datafile, v)]
         if hasattr(self, 'analog_input'):#Sync signals are recorded by stim
-            self.datafile.sync, self.datafile.sync_scaling=signal.to_16bit(self.analog_input.ai_data)
-            self.datafile.save(['sync', 'sync_scaling'])
+            self.datafile.sync_sc, self.datafile.sync_scaling=signal.to_16bit(self.analog_input.ai_data)
+            self.datafile.save(['sync_sc', 'sync_scaling'])
+            self.datafile.sync=self.analog_input.ai_data
+            self.datafile.save(['sync'])
             try:
                 if not self.parameters.get('Stimulus Only', False) and not self.parameters['partial_data']:
                     self.datafile.sync2time()
