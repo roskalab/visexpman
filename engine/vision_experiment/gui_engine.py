@@ -2054,6 +2054,8 @@ class Analysis(object):
                 sync=signal.from_16bit(sync*256,scale)
             elif sync.dtype.name=='float32':
                 pass
+            elif sync.dtype.name=='float64':
+                pass
             else:
                 raise NotImplementedError(sync.dtype.name)
             try:
