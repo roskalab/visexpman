@@ -85,6 +85,8 @@ class BitCode(object):
         return vertices
     
     def draw_bitcode(self, frame_cnt, block_bit):
+        if not hasattr(self.config,  'BITCODE_ENABLE') or not self.config.BITCODE_ENABLE:
+            return
         bit_pattern = (int(block_bit == True)<<16) | frame_cnt<<8 | 0xD5
         for bit in range(self.bitcode_nbits):
             if((bit_pattern & (1<<bit))):

@@ -539,6 +539,17 @@ class ExperimentHandler(object):
         if self.machine_config.PLATFORM in ['erg']:
             experiment_parameters=self.user_gui_engine.start_experiment(experiment_parameters)
             self.live_data=numpy.empty((0,self.machine_config.N_AI_CHANNELS))
+            
+        if self.guidata.read('Ca Imaging Enable'):
+            time.sleep(1)
+            #UDP command for sending duration and path to imaging
+            fn=os.path.splitext(os.path.basename(experiment_parameters['outfilename']))[0]
+            cmd='sec {0} filename {1}'.format(experiment_parameters['duration']+self.guidata.read('Delay after trigger'), fn)
+            utils.send_udp(self.machine_config.IMAGING_COMPUTER_IP,446,cmd)
+            self.printc(cmd)
+            time.sleep(self.guidata.read('Delay after trigger'))
+            self.cacmd=cmd
+            
         if self.santiago_setup:
             time.sleep(1)
             #UDP command for sending duration and path to imaging
@@ -691,6 +702,22 @@ class ExperimentHandler(object):
 #            self.printc('Set clamp signal to 0V')
 #            daq_instrument.set_voltage(self.machine_config.ELPHYS_COMMAND_CHANNEL, 0.0)
 
+    def save_envconfig(self,fn):
+        hh=hdf5io.Hdf5io(fn)
+        hh.software_environment=experiment_data.pack_software_environment()
+        hh.machine_config=self.machine_config.todict()
+        if 'GAMMA_CORRECTION' in hh.machine_config:
+            del hh.machine_config['GAMMA_CORRECTION']
+        hh.parameters=self.current_experiment_parameters
+        kdel=[]
+        for k, v in hh.parameters.items():
+            if v is None:
+                kdel.append(k)
+        for k in kdel:
+            del hh.parameters[k]
+        hh.save(['software_environment', 'machine_config', 'parameters'])
+        hh.close()
+        self.printc('Save env and configs')
             
     def save_experiment_files(self, aborted=False):
         self.to_gui.put({'update_status':'busy'})   
@@ -746,23 +773,11 @@ class ExperimentHandler(object):
                     outfile=self.current_experiment_parameters['outfilename']
                     if not os.path.exists(outfile):
                         self.printc(f'{outfile} is missing')
+                    self.printc(f'Merging {self.daqdatafile.filename} with {outfile}')
                     fileop.merge_hdf5_files(self.daqdatafile.filename, outfile)
-                    if 'WAVEFORM' in self.stimulus_config:
+                    if 'WAVEFORM' in self.stimulus_config or hdf5io.read_item(outfile,'machine_config')==None:
                         self.printc('Save machine config')
-                        hh=hdf5io.Hdf5io(outfile)
-                        hh.software_environment=experiment_data.pack_software_environment()
-                        hh.machine_config=self.machine_config.todict()
-                        if 'GAMMA_CORRECTION' in hh.machine_config:
-                            del hh.machine_config['GAMMA_CORRECTION']
-                        hh.parameters=self.current_experiment_parameters
-                        kdel=[]
-                        for k, v in hh.parameters.items():
-                            if v is None:
-                                kdel.append(k)
-                        for k in kdel:
-                            del hh.parameters[k]
-                        hh.save(['software_environment', 'machine_config', 'parameters'])
-                        hh.close()
+                        self.save_envconfig(outfile)
                     self.printc('Sync data merged to {0}'.format(outfile))
                     experiment_data.hdf52mat(outfile, scale_sync=True)
                     self.printc('{0} converted to mat'.format(outfile))

@@ -7,9 +7,12 @@ except:
     print('pyserial not installed')
 
 import unittest
-import PyDAQmx
-import PyDAQmx.DAQmxConstants as DAQmxConstants
-import PyDAQmx.DAQmxTypes as DAQmxTypes
+try:
+    import PyDAQmx
+    import PyDAQmx.DAQmxConstants as DAQmxConstants
+    import PyDAQmx.DAQmxTypes as DAQmxTypes
+except:
+    print('No pydaqmx installed')
 from visexpman.engine.hardware_interface import instrument
 import visexpman.engine.generic.configuration
 from visexpman.engine.generic import utils
