@@ -544,7 +544,7 @@ class ExperimentHandler(object):
             time.sleep(1)
             #UDP command for sending duration and path to imaging
             fn=os.path.splitext(os.path.basename(experiment_parameters['outfilename']))[0]
-            cmd='sec {0} filename {1}'.format(experiment_parameters['duration']+self.guidata.read('Delay after trigger'), fn)
+            cmd='sec {0} filename {1}'.format(int(experiment_parameters['duration']+self.guidata.read('Delay after trigger')), fn)
             utils.send_udp(self.machine_config.IMAGING_COMPUTER_IP,446,cmd)
             self.printc(cmd)
             time.sleep(self.guidata.read('Delay after trigger'))
@@ -994,6 +994,8 @@ class ExperimentHandler(object):
             
     def _stop_sync_recorder(self):
         if self.sync_recording_started:
+            if self.guidata.read('Ca Imaging Enable'):
+                time.sleep(self.guidata.read('Delay after trigger'))
             time.sleep(2)#Ensure that last frame is acquired
             self.read_sync_recorder()
             self.sync_recording_started=False
@@ -1114,7 +1116,7 @@ class ExperimentHandler(object):
             self.experiment_running=False
             self.to_gui.put({'update_status':'idle'})
             self.experiment_finish_time=time.time()
-            if self.machine_config.PLATFORM in ['elphys'] and ('grating' in os.path.basename(self.current_experiment_parameters['outfilename']).lower() or 'moving' in os.path.basename(self.current_experiment_parameters['outfilename']).lower()):
+            if self.machine_config.PLATFORM in ['elphys'] and ('grating' in os.path.basename(str(self.current_experiment_parameters['outfilename'])).lower() or 'moving' in os.path.basename(str(self.current_experiment_parameters['outfilename'])).lower()):
                 self.spikes2polar(self.current_experiment_parameters['outfilename'])
         elif trigger_name=='stim error' or trigger_name=='cam error':
             if self.machine_config.PLATFORM in ['mc_mea', 'elphys_retinal_ca',  'retinal']:
