@@ -41,6 +41,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.statusbar=self.statusBar()
         self.statusbar.progressbar=QtGui.QProgressBar(self)
         self.statusbar.progressbar.setTextVisible(False)
+        self.statusbar.progressbar.setRange(0, 100)
+        
         self.statusbar.addPermanentWidget(self.statusbar.progressbar)
         self.statusbar.info=QtGui.QLabel('', self)
         self.statusbar.addPermanentWidget(self.statusbar.info)
@@ -48,6 +50,9 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.statusbar.addPermanentWidget(self.statusbar.ircamera_status)
         self.statusbar.twop_status=QtGui.QLabel('', self)
         self.statusbar.addPermanentWidget(self.statusbar.twop_status)
+        self.statusbar.timelapse_status=QtGui.QLabel('', self)
+        self.statusbar.addPermanentWidget(self.statusbar.timelapse_status)
+        
         
         self.debug = gui.Debug(self)
         
@@ -270,12 +275,12 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                     else:
                         QtGui.QMessageBox.question(self, 'Warning', 'Make sure that computer is rebooted before a long recording!', QtGui.QMessageBox.Ok)
                         
-                    self.statusbar.twop_status.setText('2P time lapse')
+                    self.statusbar.timelapse_status.setText('2P time lapse')
                     self.last_scan=time.time()-self.settings['params/Time lapse/Interval']
-                    self.statusbar.twop_status.setStyleSheet('background:red;')
+                    self.statusbar.timelapse_status.setStyleSheet('background:orange;')
                 else:
-                    self.statusbar.twop_status.setText('Ready')
-                    self.statusbar.twop_status.setStyleSheet('background:gray;')
+                    self.statusbar.timelapse_status.setText('Ready')
+                    self.statusbar.timelapse_status.setStyleSheet('background:gray;')
             #2p image size changed
             elif newparams['params/Scan Width']!=self.settings['params/Scan Width'] or\
                 newparams['params/Scan Height']!=self.settings['params/Scan Height'] or\
@@ -318,6 +323,24 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
 
     def _init_hardware(self):
         self.daq_logfile=self.logger.filename.replace('2p', '2p_daq')
+        self.start_aio()
+        self.cam_logfile=self.logger.filename.replace('2p', '2p_cam')
+        self.camera=camera.ThorlabsCameraProcess(self.machine_config.THORLABS_CAMERA_DLL,
+                                self.cam_logfile,
+                                self.machine_config.IR_CAMERA_ROI)
+        self.camera.start()
+        if not self.machine_config.STAGE_IN_SCANNER_PROCESS:
+            try:
+                self.stage=stage_control.SutterStage(self.machine_config.STAGE_PORT,  self.machine_config.STAGE_BAUDRATE)
+                self.stage_z=self.stage.z
+            except OSError:
+                print('No Stage')
+        
+    def _close_hardware(self):
+        self.aio.terminate()
+        self.camera.terminate()
+        
+    def start_aio(self):
         self.waveform_generator=scanner_control.ScannerWaveform(machine_config=self.machine_config)
         if self.machine_config.STAGE_IN_SCANNER_PROCESS:
             self.aio=scanner_control.SyncAnalogIORecorder(self.machine_config.AI_CHANNELS,
@@ -339,21 +362,15 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                                                                         ao_sample_rate=self.machine_config.AO_SAMPLE_RATE, 
                                                                         shutter_port=self.machine_config.SHUTTER_PORT)
         self.aio.start()
-        self.cam_logfile=self.logger.filename.replace('2p', '2p_cam')
-        self.camera=camera.ThorlabsCameraProcess(self.machine_config.THORLABS_CAMERA_DLL,
-                                self.cam_logfile,
-                                self.machine_config.IR_CAMERA_ROI)
-        self.camera.start()
-        if not self.machine_config.STAGE_IN_SCANNER_PROCESS:
-            try:
-                self.stage=stage_control.SutterStage(self.machine_config.STAGE_PORT,  self.machine_config.STAGE_BAUDRATE)
-                self.stage_z=self.stage.z
-            except OSError:
-                print('No Stage')
+        import psutil
+        p = psutil.Process(self.aio.pid)
+        p.nice(psutil.REALTIME_PRIORITY_CLASS)
         
-    def _close_hardware(self):
+    def restart_aio(self):
+        self.printc('Restart daq process')
         self.aio.terminate()
-        self.camera.terminate()
+        time.sleep(5)
+        self.start_aio()
     
     def plot(self):
         from pylab import plot, grid, show
@@ -434,6 +451,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                         offset=self.settings['params/Advanced/2p Shift'], \
                         nframes=nf, zvalues=zvalues)
         self.twop_running=True
+        self.daqerror_counter=0
         
         if not self.settings['params/Time lapse/Enable']:
             self.statusbar.twop_status.setText('2P')
@@ -495,6 +513,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 if (dt==0 or dt>self.settings['params/Time lapse/Interval']) and not self.twop_running:
                     import psutil
                     self.printc(f'Debug: {psutil.virtual_memory().percent}% memory usage')
+                    self.restart_aio()
                     self.z_stack_action()
                     self.last_scan=now
                     self.parameter_changed()
@@ -759,13 +778,26 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             if not self.aio.queues['response'].empty():
                 msg=self.aio.queues['response'].get()
                 self.printc(f'message from daq: {msg}')
-                if msg=='nframes recorded':
+                if 'Stage is set to' in msg:
+                    index=numpy.where(self.zvalues==float(msg.split()[-3]))[0].max()+1
+                    progress=100*(index/self.zvalues.shape[0])
+                    #self.printc((index, self.zvalues.shape[0]))
+                    self.statusbar.progressbar.setValue(progress)
+                elif 'Z stack Done' in msg:
+                    self.statusbar.twop_status.setText('Ready')
+                    self.statusbar.twop_status.setStyleSheet('background:gray;')
+                    self.statusbar.progressbar.setValue(0)
+                elif msg=='nframes recorded':
                     self.nframes_recording_running=False
                     self.last_recording_filename=copy.deepcopy(self.filename)
                     self.twop_running=False
                     if not self.z_stack_running and not self.settings['params/Time lapse/Enable']:
                         self.statusbar.twop_status.setText('Ready')
                         self.statusbar.twop_status.setStyleSheet('background:gray;')
+                        self.statusbar.progressbar.setValue(0)
+                elif 'PyDAQmx.DAQmxFunctions.SamplesNoLongerAvailable' in msg:
+                    self.daqerror_counter+=1
+                    self.printc(f'Daq error counter {self.daqerror_counter}')
                 else:
                     self.printc(msg)
             if hasattr(self, 'intensities') and len(self.intensities)>0:
@@ -951,8 +983,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             s=self.settings['params/Z Stack/Start']
             e=self.settings['params/Z Stack/End']
             st=self.settings['params/Z Stack/Step']
-            if e>s:
-                raise ValueError('Only downward motion allowed. Ensure that start position is higher than end position')
+            if e<s:
+                raise ValueError('Only upward motion allowed. Ensure that start position is lower than end position')
             self.depths=numpy.linspace(s, e, int(abs(s-e)/st+1))
             steptime=1 if st<1000 else st/1000
             steptime*=4
@@ -960,6 +992,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             self.printc(f"Z stack in {', '.join(map(str,self.depths))}, stepsamples: {self.stepsamples}")
             self.zvalues=numpy.repeat(self.depths, self.settings['params/Z Stack/Samples per depth']+self.stepsamples)
             self.record_action(zvalues=self.zvalues)
+            self.statusbar.twop_status.setText('Z stack')
+            self.statusbar.twop_status.setStyleSheet('background:red;')
             return
             ext=self.settings['params/Z Stack/File Format']
             self.printc(f"Z stack in {', '.join(map(str,self.depths))}, saving to {fileop.replace_extension(self.zstack_filename,ext)}")
@@ -1184,6 +1218,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             QtCore.QCoreApplication.instance().processEvents()
         self.timelapse_timepoints.sort()
         self.zstacks=numpy.array(self.zstacks)
+        self.zstacks=self.zstacks.mean(axis=2)#Average same depths
         #Merge all files to one big datafile
         #Save self.timelapse_timepoints to file
         self.statusbar.progressbar.setValue(0)

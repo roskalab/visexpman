@@ -2227,6 +2227,7 @@ class AdvancedStimulation(StimulationHelpers):
             state = False
             for i in range(len(timing)):
                 if state:
+                    self.block_start('flash')
                     if hasattr(colors, '__iter__'):
                         color = colors[(i-1)/2]
                     else:
@@ -2238,7 +2239,7 @@ class AdvancedStimulation(StimulationHelpers):
                             if len(sizes.dtype) == 2 : #row, col format
                                 size = utils.rc((sizes[(i-1)/2]['row'], sizes[(i-1)/2]['col']))
                             else:
-                                size = utils.rc((sizes[(i-1)/2],sizes[(i-1)/2]))
+                                size = utils.rc((sizes[int((i-1)/2)],sizes[int((i-1)/2)]))
                         else:
                             size = sizes
                         if hasattr(ring_sizes, '__iter__') and len(ring_sizes.shape) > 0:
@@ -2246,6 +2247,7 @@ class AdvancedStimulation(StimulationHelpers):
                         else:
                             ring_size = ring_sizes
                         self.show_shape(shape = shape,  duration = timing[i],  pos = position,  color = color,  background_color = background_color,  size = size, save_frame_info = False, ring_size = ring_size)
+                    self.block_end('flash')
                 else:
                     self.show_fullscreen(color = background_color, duration = timing[i], save_frame_info = False)
                 state = not state

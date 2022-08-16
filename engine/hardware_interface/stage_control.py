@@ -363,37 +363,61 @@ class SutterStage(serial.Serial):
     """
     def __init__(self, port, baudrate):
         #TODO: set speed at init
-        serial.Serial.__init__(self,  port, baudrate=9600, timeout=10)
+        serial.Serial.__init__(self,  port, baudrate=9600, timeout=1)
         time.sleep(2)
         try:
             self.reset_controller()
             time.sleep(100e-3)
             #self.write(b'b\r')#Set to relative mode
+            self.write(b'\x03')#Abort any motion
             self.write(b'a\r')#Set to absolue mode
-            self.check_response()
-            self.write('V\x01\x00\r'.encode())#Set speed to 250 ustep/second
-            self.check_response()
+            print(self.read(100))
+            self.high_speed=True
+            self.set_speed(high=True)
             self.setnowait=False
             initial=self.z
         except:
             import pdb, traceback
             print(traceback.format_exc())
-            pdb.set_trace()
+            #pdb.set_trace()
         pass
-            
+        
+    def set_speed(self, high=False):
+        if not high and self.high_speed:
+            self.write('V\x01\x00\r'.encode())#Set speed to 250 ustep/second
+            self.high_speed=False
+            time.sleep(100e-3)
+            self.check_response()
+            print('Set low speed')
+        elif high and not self.high_speed:
+            self.write('V\x7f\x00\r'.encode())
+            self.high_speed=True
+            time.sleep(100e-3)
+            self.check_response()
+            print('Set high speed')
+        
     def check_response(self):
         resp=self.read(10)
         if resp!=b'\r':
-            print("Try to recover")
+            print(f"Try to recover: {resp}")
             time.sleep(1)
             self.reset_controller()
-            raise IOError('No access to stage: {0}'.format(resp))
+            #raise IOError('No access to stage: {0}'.format(resp))
             
     def reset_controller(self):
         self.write(b'r\r')
+        time.sleep(2)
         resp=self.read(10)
         if len(resp)==0:
+            #import pdb;pdb.set_trace()
             raise IOError('No access to stage: {0}'.format(resp))
+            
+    def is_moving(self):
+        try:
+            pos=self.z
+            return False
+        except:
+            return True
         
     @property
     def z(self):#self.write(b'c\r');resp=self.read(13);struct.unpack('<iii',resp[:-1])
@@ -405,6 +429,7 @@ class SutterStage(serial.Serial):
             self.write(b'c\r')
             resp=self.read(13)
         if len(resp)!=13 or resp[-1]!=13:
+            print(self.read(1000))
             raise IOError("Invalid response: {0}, {1}".format(resp, len(resp)))
         self.xyz=struct.unpack('<iii',resp[:-1])
         return self.xyz[2]
@@ -416,6 +441,10 @@ class SutterStage(serial.Serial):
         #print(deltaz)
         if deltaz>30000:
             raise ValueError(f'too big movement: {deltaz}')
+#        elif deltaz>1000:
+#            self.set_speed(high=True)
+#        elif deltaz<1000:
+#            self.set_speed(high=False)
         self.write(b'm'+cmd+b'\r')
         self.xyz=(self.xyz[0], self.xyz[1], value)
         if not self.setnowait:
@@ -423,6 +452,31 @@ class SutterStage(serial.Serial):
         else:
             if self.in_waiting>0:
                 self.read(self.in_waiting)
+                
+    def setz(self, value, timeout=5):
+        cmd=struct.pack('<iii', 0, 0, int(value))
+        self.write(b'm'+cmd+b'\r')
+        self.wait(timeout)
+        
+    def wait(self, timeout):
+        t0=time.time()
+        while True:
+            time.sleep(0.5)
+            if self.in_waiting>0:
+                print(self.read(self.in_waiting))
+                break
+            if time.time()-t0>timeout*60:
+                if not self.is_moving():
+                    print('Timeout')
+                    break
+        
+        print(time.time()-t0)
+        
+    def setz2(self, value):
+        if self.in_waiting>0:
+            print(self.read(self.in_waiting))
+        cmd=struct.pack('<iii', 0, 0, int(value))
+        self.write(b'm'+cmd+b'\r')
         
 class EncoderReader(object):
     def __init__(self, devref):
@@ -432,8 +486,8 @@ class EncoderReader(object):
         self.readbuf = DAQmxTypes.ctypes.c_long()
         self.data = numpy.zeros((1,), dtype=numpy.float64)
         
-    def read(self):
-        self.ctr.ReadCounterF64(DAQmxConstants.DAQmx_Val_Auto, -1, self.data, 1000, DAQmxTypes.byref(self.readbuf), None)
+    def read(self, timeout=-1):
+        self.ctr.ReadCounterF64(DAQmxConstants.DAQmx_Val_Auto, timeout, self.data, 1000, DAQmxTypes.byref(self.readbuf), None)
         print('encoder reader', self.data)
         return self.data[0]
 
@@ -589,7 +643,12 @@ if test_mode:
                 
 class TestSutter(unittest.TestCase):
     def test(self):
-        stage = SutterStage("COM4", 9600)
+        stage = SutterStage("COM7", 9600)
+        time.sleep(2)
+        stage.write('V\x7f\x00\r'.encode())
+        print(stage.read(13))
+        stage.setz(100)
+        stage.setz(0)
         print(stage.z)
         stage.z=3000
         self.assertEqual(stage.z, 3000)
@@ -606,6 +665,51 @@ class TestSutter(unittest.TestCase):
         print(stage.z)
         self.assertEqual(stage.z, -98765432)
         
+    def test_sutter_restart(self):
+        stage = SutterStage("COM7", 9600)
+        time.sleep(3)
+        stage.z=10000
+        time.sleep(5)
+        stage.close()
+        print('Restart stage, terminate ongoing motion')
+        stage = SutterStage("COM7", 9600)
+        time.sleep(3)
+        print(stage.z, '?')
+        stage.setz(0)
+        print(stage.z, 0)
+        stage.setz(250)
+        print(stage.z, 250)
+        stage.setz(0)
+        print(stage.z, 0)
+        stage.close()
+        print('Test jump back to initial position')
+        stage = SutterStage("COM7", 9600)
+        time.sleep(3)
+        print(stage.z)
+        stage.set_speed(high=True)
+        stage.setz(20000)
+        print(stage.z, 20000)
+        stage.set_speed(high=False)
+        stage.setz(19900)
+        stage.set_speed(high=True)
+        stage.setz(0)
+        print(stage.z, 0)
+        stage.close()
+        
+    def test_setz_nowait(self):
+        stage = SutterStage("COM7", 9600)
+        time.sleep(3)
+        print(stage.z, 0)
+        stage.setz2(100)
+        stage.wait(5)
+        stage.setz2(5000)
+        stage.wait(5)
+        print(stage.z, 5000)
+        stage.setz(0)
+        stage.close()
+        
 if __name__ == "__main__":
-    unittest.main()
-#    stage_calibration(1, '/home/zoltan/visexp/debug/stage/cut/0')
+    mytest = unittest.TestSuite()
+    mytest.addTest(TestSutter('test_setz_nowait'))
+    unittest.TextTestRunner(verbosity=2).run(mytest)
+

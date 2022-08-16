@@ -333,16 +333,33 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                         self.printl('Terminating')
                         break
                     elif cmd[0]=='read_z':
-                        z=self.stage.z
-                        self.printl(z)
-                        self.queues['stage'].put(z)
+                        try:
+                            z=self.stage.z
+                            self.printl(z)
+                            self.queues['stage'].put(z)
+                        except:
+                            try:
+                                time.sleep(3)
+                                z=self.stage.z
+                                self.printl(z)
+                                self.queues['stage'].put(z)
+                            except:
+                                import traceback
+                                self.queues['response'].put(traceback.format_exc())
                     elif cmd[0]=='set_z':
-                        self.stage.z=cmd[1]
+                        try:
+                            self.stage.setz(cmd[1])
+                            self.queues['response'].put(f'Stage set to {cmd[1]}')
+                        except:
+                            import traceback
+                            self.queues['response'].put(traceback.format_exc())
+#                        self.stage.z=cmd[1]
                     elif cmd[0]=='set_origin':
                         self.stage.write(b'o\r')
                         try:
                             self.stage.check_response()
                         except:
+                            import traceback
                             self.queues['response'].put(traceback.format_exc())
                         self.queues['response'].put(f'z Origin set: {self.stage.z} ustep')
                     else:
@@ -354,13 +371,20 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                         data_chunk=daq.SyncAnalogIO.read(self)
                         #utils.object2npy({'waveform':waveform, 'data':data_chunk, 'data_format':self.data_format}, r'c:\data\2p.npy')
                         self.frame_counter+=1
-                        self.printl(f'fc: {self.frame_counter}')
+                        self.printl(f'fc: {self.frame_counter}, data_chunk.shape {data_chunk.shape}')
+                        #raise ValueError()
                     except (PyDAQmx.DAQmxFunctions.SamplesNotYetAvailableError,PyDAQmx.DAQmxFunctions.SamplesNoLongerAvailableError) as e:
-                        self.printl(self.number_of_ai_samples)
+                        self.printl(f'self.number_of_ai_samples: {self.number_of_ai_samples}')
                         import traceback
                         self.printl(traceback.format_exc())
                         self.printl('Read error')
-                        continue
+                        errormsg=traceback.format_exc()
+                        if 'PyDAQmx.DAQmxFunctions.SamplesNoLongerAvailableError'  in errormsg:
+                            errormsg=errormsg.replace('Error', '').replace('error','')
+                        self.queues['response'].put(f'{errormsg}')
+                        data_chunk[:, :]=0#Save 0s to indicate that this was not correctly recorded
+                        self.queues['response'].put(f'data_chunk.shape {data_chunk.shape}')
+                        #Save previous frame               
                     if self.queues['raw'].empty():
                         self.queues['raw'].put(data_chunk)
                     if self.frame_counter>NFRAMES_SKIP_AT_SCANNING_START:
@@ -382,19 +406,23 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                                 else:
                                     setstage=True
                                 if setstage:
-                                    self.encoder_readout.append(self.encoder.read())
-                                    self.stage.z=actual_zvalue
-                                    self.queues['response'].put(f'Stage is set to: {actual_zvalue}')
-                                    self.printl(f'Stage set to {actual_zvalue}')
+                                    #self.encoder_readout.append(self.encoder.read(timeout=1e-3))
+                                    self.encoder_readout.append(1)
+                                    #self.stage.z=actual_zvalue
+                                    self.stage.setz2(actual_zvalue)#Set stage but do not wait for completition
+                                    self.queues['response'].put(f'Stage is set to: {actual_zvalue} / {self.encoder_readout[-1]}')
+                                    self.printl(f'Stage set to {actual_zvalue} / {self.encoder_readout[-1]}')
                     if self.nframes is not None and self.nframes>0 and self.nframes<self.frame_counter:
                         self.stop_recording()
                         self.printl('nframes recorded')
                         self.queues['response'].put('nframes recorded')
+                        #self.queues['response'].put('nframes recorded')
                 time.sleep(0.02)
             self.printl('Process done')
             #Clean up
             self.digital_output.ClearTask()
-            self.encoder.close()
+            if hasattr(self,  'encoder'):
+                self.encoder.close()
         except:
             import traceback
             self.printl(traceback.format_exc(),loglevel='error')
@@ -406,11 +434,15 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
         #readout=daq.SyncAnalogIO.stop(self)
         readout=None
         self.analog_output.StopTask()
+        self.printl("self.analog_output.StopTask()")
         self.analog_input.StopTask()
+        self.printl("self.analog_input.StopTask()")
         self.printl("DAQ terminated")
         if hasattr(self,'data_handle'):
             if readout is not None and len(readout.shape)==2:#In some cases the last readut from daq has an extra dimension. Reason unknown
                 self.data2file(readout)
+            if hasattr(self,  'encoder'):
+                setattr(self.fh.root.twopdata.attrs,'encoder_readout',numpy.array(self.encoder_readout))
             self.fh.close()
             import hdf5io, tifffile
             data=hdf5io.read_item(self.filename, 'twopdata')
@@ -736,9 +768,13 @@ class Test(unittest.TestCase):
     def test_image_correction_scanner_position_signal(self):
         fn='C:\\data\\2p\\2p_TEST5_202110131558347.hdf5'
         folder=r'G:\My Drive\2p'
+        folder=r'D:\Data\convert'
+        folder=r'D:\Data\test'
         fsample=250e3
         files=[fn]
+        files=[]
         files.extend(fileop.listdir(folder))
+        files.sort()
         for fn in files:
             t0=time.time()
             try:
@@ -748,7 +784,32 @@ class Test(unittest.TestCase):
                 print(traceback.format_exc())
             print(fn, time.time()-t0)
             
+    def test_long_running_scan(self):
+        sw=ScannerWaveform(fsample=400e3, scan_voltage_um_factor=1/128, projector_control_voltage=3.3, frame_timing_pulse_width=1e-3)
+        waveform_x,  waveform_y, projector_control,  frame_timing,  boundaries= sw.generate(100, 100, 3, 20, 2, 0, 0)
+        import tempfile
+        waveform=numpy.array([waveform_x,  waveform_y])
+        for j in range(10):
+            filename=os.path.join(r'c:\Data\log', '2pdata_{0}.hdf5'.format(time.time()))
+            self.recorder=SyncAnalogIORecorder('Dev1/ai0:3','Dev1/ao0:1',r'c:\Data\log\test.txt',timeout=1,ai_sample_rate=250e3,ao_sample_rate=250e3,
+                            shutter_port='Dev1/port0/line0')
+            self.recorder.start()
+            time.sleep(0.5)
+            self.recorder.start_(waveform,filename,{'boundaries': boundaries, 'channels':[0,1]}, nframes=1200)
+            for i in range(600):
+                time.sleep(1)
+                if not self.recorder.queues['data'].empty():
+                    print(self.recorder.queues['data'].get().sum())
+            self.recorder.stop()
+            time.sleep(2)
+            self.recorder.terminate()
+            time.sleep(3)
+            #import pdb;pdb.set_trace()
+            
             
 if __name__ == "__main__":
-    unittest.main()
+    mytest = unittest.TestSuite()
+    mytest.addTest(Test('test_long_running_scan'))
+    unittest.TextTestRunner(verbosity=2).run(mytest)
+
     

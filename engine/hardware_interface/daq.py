@@ -168,6 +168,8 @@ class SyncAnalogIO():
         self.n_ao_channels=int(numpy.diff(list(map(float, ao_channels.split('/')[1][2:].split(':'))))[0]+1)
         
     def create_channels(self):
+        PyDAQmx.DAQmxResetDevice(self.ao_channels.split('/')[0])
+        time.sleep(0.5)
         self.analog_output = PyDAQmx.Task()
         self.analog_output.CreateAOVoltageChan(self.ao_channels,
                                                             'ao',
