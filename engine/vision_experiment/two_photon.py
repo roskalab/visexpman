@@ -278,6 +278,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                     self.statusbar.timelapse_status.setText('2P time lapse')
                     self.last_scan=time.time()-self.settings['params/Time lapse/Interval']
                     self.statusbar.timelapse_status.setStyleSheet('background:orange;')
+                    self.daqerror_counter=0
                 else:
                     self.statusbar.timelapse_status.setText('Ready')
                     self.statusbar.timelapse_status.setStyleSheet('background:gray;')
@@ -451,7 +452,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                         offset=self.settings['params/Advanced/2p Shift'], \
                         nframes=nf, zvalues=zvalues)
         self.twop_running=True
-        self.daqerror_counter=0
+
         
         if not self.settings['params/Time lapse/Enable']:
             self.statusbar.twop_status.setText('2P')
@@ -797,7 +798,9 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                         self.statusbar.progressbar.setValue(0)
                 elif 'PyDAQmx.DAQmxFunctions.SamplesNoLongerAvailable' in msg:
                     self.daqerror_counter+=1
-                    self.printc(f'Daq error counter {self.daqerror_counter}')
+                    self.printc(f'Daq failed read counter {self.daqerror_counter}')
+                    self.printc('Terminated z stack because of daq error')
+                    self.stop_action()
                 else:
                     self.printc(msg)
             if hasattr(self, 'intensities') and len(self.intensities)>0:
@@ -1218,7 +1221,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             QtCore.QCoreApplication.instance().processEvents()
         self.timelapse_timepoints.sort()
         self.zstacks=numpy.array(self.zstacks)
-        self.zstacks=self.zstacks.mean(axis=2)#Average same depths
+        self.zstacks=numpy.cast['float32'](self.zstacks.mean(axis=2))#Average same depths
         #Merge all files to one big datafile
         #Save self.timelapse_timepoints to file
         self.statusbar.progressbar.setValue(0)
@@ -1243,7 +1246,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         
 def process_zstack(filename, max_pmt_voltage=8):
     #Undistort images based on scanner position signal
-    frames, distorted_frames, distorted=scanner_control.pmt2undistorted_image(filename, fcut=10e3)
+    frames, distorted_frames, distorted=scanner_control.pmt2undistorted_image(filename, fcut=5e3)
     frames=frames[1:]#Ignore first frame
     #remove transient frames
     h=tables.open_file(filename, 'a')

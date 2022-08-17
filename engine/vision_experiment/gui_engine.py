@@ -644,7 +644,10 @@ class ExperimentHandler(object):
                         os.remove(src)
                 elif self.machine_config.FILE_TRIGGER_EXTENSION=='.msrd':
                     files=[f for f in fileop.listdir(os.path.dirname(self.current_experiment_parameters['mcd_file'])) if os.path.splitext(self.current_experiment_parameters['mcd_file'])[0] in f]
-                    msrd_num=os.path.splitext(os.path.basename(self.current_experiment_parameters['mcd_file']).split("_")[1])[0]
+                    try:
+                        msrd_num=os.path.splitext(os.path.basename(self.current_experiment_parameters['mcd_file']).split("_")[1])[0]
+                    except:
+                        msrd_num=len([f for f in os.listdir(os.path.dirname(self.current_experiment_parameters['mcd_file'])) if os.path.splitext(f)[1]=='.msrd'])
                     dstfiles=[os.path.splitext(self.current_experiment_parameters['outfilename'])[0].replace('data_',f'data_{msrd_num}_')+os.path.splitext(f)[1] for f in files]
                     self.dstfiles=dstfiles
                     try:

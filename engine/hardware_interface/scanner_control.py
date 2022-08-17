@@ -319,6 +319,7 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                         self.waveform=waveform
                         bt=waveform.shape[1]/self.kwargs['ao_sample_rate']
                         self.printl(f'buffer time is {bt}')
+                        self.analog_input.CfgInputBuffer(1000000)
                         daq.SyncAnalogIO.start(self, self.kwargs['ai_sample_rate'], self.kwargs['ao_sample_rate'],  waveform)
                         self.printl('Started to save to {0}'.format(filename))
                         self.filename=filename
@@ -333,6 +334,9 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                         self.printl('Terminating')
                         break
                     elif cmd[0]=='read_z':
+                        if self.running:
+                            self.queues['response'].put('Ongoing 2p recording,  stage is not accessible')
+                            continue
                         try:
                             z=self.stage.z
                             self.printl(z)
@@ -347,6 +351,9 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                                 import traceback
                                 self.queues['response'].put(traceback.format_exc())
                     elif cmd[0]=='set_z':
+                        if self.running:
+                            self.queues['response'].put('Ongoing 2p recording,  stage is not accessible')
+                            continue
                         try:
                             self.stage.setz(cmd[1])
                             self.queues['response'].put(f'Stage set to {cmd[1]}')
@@ -355,6 +362,9 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                             self.queues['response'].put(traceback.format_exc())
 #                        self.stage.z=cmd[1]
                     elif cmd[0]=='set_origin':
+                        if self.running:
+                            self.queues['response'].put('Ongoing 2p recording,  stage is not accessible')
+                            continue
                         self.stage.write(b'o\r')
                         try:
                             self.stage.check_response()
@@ -452,8 +462,10 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
             self.printl('Closing file')
         self.printl(f'Recorded {self.frame_counter} frames, sent {self.ct} frames to GUI, {self.cct} frames saved')
         if self.zvalues!=[] and self.zvalues is not None:
-            self.stage.z=self.zvalues[0]
-            self.queues['response'].put('Stage set back to initial position')
+            #self.stage.z=self.zvalues[0]
+            self.queues['response'].put('Setting back stage to initial position')
+            self.stage.setz(self.zvalues[0])
+            self.queues['response'].put('Z stack Done')
         self.running=False
         
     def set_origin(self):
@@ -474,14 +486,15 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
         if not self.queues['stage'].empty():
             return self.queues['stage'].get()
         
-def pmt2undistorted_image(filename, fcut=10e3):
+def pmt2undistorted_image(filename, fcut=5e3):
     '''
     2p image is reconstructed from hdf5 file containing raw pmt signal and scanner position signals
     Distortion coming from scanner motion is corrected. Position signal of each sweep of x scanner is
     individually processed and the corresponding image line is calculated. This ensures that motion transients
     are also taken into account.
     
-    fcut: cutting frequency of low pass filter applied on pmt signal
+    fcut: cutting frequency of low pass filter applied on pmt signal. 10 kHz would be sufficient based on initial recordings. Later further noise detected and reduced to 5 kHz 
+    At 3 kHz would be more robust but peak locations are too much shifted.
     '''
     hh=tables.open_file(filename, 'r')
     fsample=hh.root.twopdata.attrs.AI_SAMPLE_RATE
@@ -506,11 +519,16 @@ def pmt2undistorted_image(filename, fcut=10e3):
         pos_peaks=scipy.signal.find_peaks(xposfilt)[0]
         neg_peaks=scipy.signal.find_peaks(-xposfilt)[0]
         if pos_peaks.shape[0]!=w*r+nxscans_flyback!=neg_peaks.shape[0]:
+            #plot(xpos);plot(xposfilt);scatter(pos_peaks,numpy.ones_like(pos_peaks)*0.1,c='r');scatter(pos_peaks,numpy.ones_like(neg_peaks)*-0.1,c='g');show()
             print(f'Incorrect number of scans in position signal,pos_peaks: {pos_peaks.shape}, neg_peaks: {neg_peaks.shape}, {w}, {r}, {nxscans_flyback} ')
-            tp=hh.root.twopdata.read()[:, :, :, 0]
-            hh.close()
-            distorted=True
-            return tp, tp, distorted
+            if abs(neg_peaks[0]-pos_peaks[0])<abs(neg_peaks[10]-pos_peaks[10]):
+                neg_peaks=neg_peaks[-int(w*r+nxscans_flyback):]
+                pos_peaks=pos_peaks[-int(w*r+nxscans_flyback):]
+            if abs(pos_peaks.shape[0]-w*r+nxscans_flyback)>1 or abs(pos_peaks.shape[0]-w*r+nxscans_flyback)>1:
+                tp=hh.root.twopdata.read()[:, :, :, 0]
+                hh.close()
+                distorted=True
+                return tp, tp, distorted
             #raise ValueError(f'Incorrect number of scans in position signal,pos_peaks: {pos_peaks.shape}, neg_peaks: {neg_peaks.shape}, {w}, {r}, {nxscans_flyback} ')
         #Remove flyback scans
         pos_peaks=pos_peaks[:int(w*r)]
