@@ -1,4 +1,5 @@
 import numpy, unittest, copy, time, multiprocessing,queue, pdb
+import ctypes 
 try:
     import PyDAQmx
     import PyDAQmx.DAQmxConstants as DAQmxConstants
@@ -44,7 +45,7 @@ def set_waveform_start(channels,waveform,sample_rate):
                                         10.0,
                                         DAQmxConstants.DAQmx_Val_Volts,
                                         None)
-    analog_output.CfgSampClkTiming("OnboardClock",
+    analog_output.CfgSampClkTiming("OnboardClock", 
                                         sample_rate,
                                         DAQmxConstants.DAQmx_Val_Rising,
                                         DAQmxConstants.DAQmx_Val_FiniteSamps,
@@ -157,18 +158,36 @@ def digital_pulse(channel,duration):
     digital_output.ClearTask()
             
 class SyncAnalogIO():
-    def __init__(self, ai_channels,  ao_channels,  timeout=1):
+    def __init__(self, ai_channels,  ao_channels,  timeout=1, ao_channels2=None):
         self.timeout=timeout
         self.ai_channels=ai_channels
         self.ao_channels=ao_channels
+        self.ao_channels2=ao_channels2
         check_device(ai_channels)
         check_channel(ai_channels)
         check_channel(ao_channels)
+        if ao_channels2 is not None:
+            check_channel(ao_channels2)
         self.n_ai_channels=int(numpy.diff(list(map(float, ai_channels.split('/')[1][2:].split(':'))))[0]+1)
         self.n_ao_channels=int(numpy.diff(list(map(float, ao_channels.split('/')[1][2:].split(':'))))[0]+1)
-        
+        if ao_channels2 is not None:
+            self.n_ao_channels2=int(numpy.diff(list(map(float, ao_channels2.split('/')[1][2:].split(':'))))[0]+1)
+        else:
+            self.n_ao_channels2 = 0
+            
+        buf = ctypes.create_string_buffer(100)
+        PyDAQmx.GetDevProductType(self.ai_channels.split('/')[0], buf, 100)
+        ai_product_type = buf.value.decode("utf-8")  
+        if ai_product_type == "PCIe-6374":
+            print("PCIe-6374 detected!")
+            self.ai_input_mode = DAQmxConstants.DAQmx_Val_Diff
+        else:
+            self.ai_input_mode = DAQmxConstants.DAQmx_Val_RSE
+       
     def create_channels(self):
         PyDAQmx.DAQmxResetDevice(self.ao_channels.split('/')[0])
+        if self.ao_channels2 is not None:
+            PyDAQmx.DAQmxResetDevice(self.ao_channels2.split('/')[0])
         time.sleep(0.5)
         self.analog_output = PyDAQmx.Task()
         self.analog_output.CreateAOVoltageChan(self.ao_channels,
@@ -177,36 +196,72 @@ class SyncAnalogIO():
                                                             7,
                                                             DAQmxConstants.DAQmx_Val_Volts,
                                                             None)
-        self.analog_output.CfgDigEdgeStartTrig('/{0}/ai/StartTrigger' .format(self.ao_channels.split('/')[0]), DAQmxConstants.DAQmx_Val_Rising)
+        self.analog_output.CfgDigEdgeStartTrig('/{0}/RTSI1' .format(self.ai_channels.split('/')[0]), DAQmxConstants.DAQmx_Val_Rising)
+        
+        if self.ao_channels2 is not None:
+            self.analog_output2 = PyDAQmx.Task()
+            self.analog_output2.CreateAOVoltageChan(self.ao_channels2,
+                                                                'ao',
+                                                                -7,
+                                                                7,
+                                                                DAQmxConstants.DAQmx_Val_Volts,
+                                                                None)
+            self.analog_output2.CfgDigEdgeStartTrig('/{0}/RTSI1' .format(self.ai_channels.split('/')[0]), DAQmxConstants.DAQmx_Val_Rising)
+        
+        
         self.analog_input = PyDAQmx.Task()
         self.analog_input.CreateAIVoltageChan(self.ai_channels,
                                                             'ai',
-                                                            DAQmxConstants.DAQmx_Val_RSE,
+                                                            self.ai_input_mode,
                                                             -10,
                                                             10,
                                                             DAQmxConstants.DAQmx_Val_Volts,
                                                             None)
+        if self.ao_channels2 is not None:
+            self.analog_input.ExportSignal(DAQmxConstants.DAQmx_Val_StartTrigger, '/{0}/RTSI1' .format(self.ai_channels.split('/')[0]))
+            self.analog_output.ExportSignal(DAQmxConstants.DAQmx_Val_10MHzRefClock, '/{0}/RTSI0' .format(self.ao_channels.split('/')[0]))
+            
         self.read_buffer = DAQmxTypes.int32()
         
-    def start(self, ai_sample_rate, ao_sample_rate,  waveform):
+        self.analog_output2.SetRefClkRate(10000000)
+        self.analog_output2.SetRefClkSrc('/{0}/RTSI0' .format(self.ai_channels.split('/')[0]))
+
+        
+    def start(self, ai_sample_rate, ao_sample_rate,  waveform, waveform2=None):
         if len(waveform.shape)!=2 or waveform.shape[0]>waveform.shape[1]:
             raise Exception('Invalid waveform dimensions: {0}'.format(waveform.shape))
+        if waveform2 is not None and (len(waveform2.shape)!=2 or waveform2.shape[0]>waveform2.shape[1]):
+            raise Exception('Invalid waveform2 dimensions: {0}'.format(waveform2.shape))
         self.ai_sample_rate=ai_sample_rate
         self.ao_sample_rate=ao_sample_rate
         self.waveform=waveform
         self.number_of_ai_samples = int(waveform.shape[1] * float(self.ai_sample_rate) / float(self.ao_sample_rate))
         if waveform.shape[0]!=self.n_ao_channels:
             raise ValueError("AO channel number ({0}) and waveform dimensions ({1}) do not match".format(waveform.shape[0], self.n_ao_channels))
+        if waveform2 is not None and (waveform2.shape[0]!=self.n_ao_channels2):
+            raise ValueError("AO channel2 number ({0}) and waveform2 dimensions ({1}) do not match".format(waveform2.shape[0], self.n_ao_channels2))
+        if self.n_ao_channels2 != 0 and waveform2 is None:
+            raise ValueError("AO channel2 is present but waveform2 in None")
+        if waveform2 is not None and waveform.shape[1] != waveform2.shape[1]:
+            raise Exception('waveform and waveform2 length does not match. waveform length: {0} waveform2 length: {1}'.format(waveform.shape[1], waveform2.shape[1]))
         self.analog_output.CfgSampClkTiming("OnboardClock",
                                         ao_sample_rate,
                                         DAQmxConstants.DAQmx_Val_Rising,
                                         DAQmxConstants.DAQmx_Val_ContSamps,
                                         waveform.shape[1])
+        if self.ao_channels2 is not None:        
+            self.analog_output2.CfgSampClkTiming("OnboardClock",
+                                            ao_sample_rate,
+                                            DAQmxConstants.DAQmx_Val_Rising,
+                                            DAQmxConstants.DAQmx_Val_ContSamps,
+                                            waveform.shape[1])
+                                            
         self.analog_input.CfgSampClkTiming("OnboardClock",
                                         ai_sample_rate,
                                         DAQmxConstants.DAQmx_Val_Rising,
                                         DAQmxConstants.DAQmx_Val_ContSamps,
                                         self.number_of_ai_samples)
+                                                                       
         self.analog_output.WriteAnalogF64(waveform.shape[1],
                                 False,
                                 self.timeout,
@@ -214,7 +269,18 @@ class SyncAnalogIO():
                                 waveform,
                                 None,
                                 None)
+                                
+        if self.ao_channels2 is not None:                          
+            self.analog_output2.WriteAnalogF64(waveform2.shape[1],
+                                    False,
+                                    self.timeout,
+                                    DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                    waveform2,
+                                    None,
+                                    None)
         self.ai_frames = 0
+        if self.ao_channels2 is not None:
+            self.analog_output2.StartTask()
         self.analog_output.StartTask()
         self.analog_input.StartTask()
                                 
@@ -364,18 +430,20 @@ class AnalogRecorder(multiprocessing.Process):
         
 class TestDaq(unittest.TestCase):
     def setUp(self):
-        set_voltage('Dev1/ao0:1', 0)
-    
+        set_voltage('Dev6/ao0:1', 0)
+    @unittest.skip('') 
     def test_1_terminate_waveform(self):
         #Test is waveform generator can be aborted
         analog_output, wf_duration=set_waveform_start('Dev1/ao0',numpy.ones((1,10000)),1000)
         time.sleep(0.2)
         set_waveform_finish(analog_output, 0.1,wait=False)
         
+    @unittest.skip('')    
     def test_2_set_waveform(self):
         set_waveform('Dev1/ao0', numpy.linspace(3, 2, 1000)[:,None].T,1000)
         #TODO: check waveform with analog input recording
     
+    @unittest.skip('') 
     def test_3_sync_analog_io_basic(self):
         from pylab import plot,show,figure
         import pdb
@@ -423,7 +491,59 @@ class TestDaq(unittest.TestCase):
         reads.append(s.stop())
         self.assertEqual(len(numpy.array(reads).shape),3)
         s.close()
+    
+    @unittest.skip('') 
+    def test_3_sync_analog_io_high_speed(self):
+        from pylab import plot,show,figure,legend
+        import pdb
+        PyDAQmx.SelfTestDevice('Dev6')
         
+        s=SyncAnalogIO('Dev6/ai0:3', 'Dev6/ao0:0')
+        s.create_channels()
+        waveform=numpy.array([numpy.linspace(1, 3, 10000)])
+       
+        #High speed test
+        s.start(2000000,2000000, waveform)
+        reads=[s.read() for i in range(3)]
+        reads.append(s.stop())
+        plot(waveform[0])
+        [plot(reads[i][0]) for i in range(2)]
+        legend(['waveform', 'input_AI0_0', 'input_AI0_1'])
+        show()
+        s.close()
+        
+        
+    def test_3_sync_analog_io_high_speed_two_card(self):
+        from pylab import plot,show,figure,legend
+        import pdb
+        PyDAQmx.SelfTestDevice('Dev6')
+        
+        s=SyncAnalogIO('Dev6/ai0:3', 'Dev6/ao0:0', ao_channels2='Dev5/ao0:0')
+        s.create_channels()
+        waveform=numpy.array([numpy.linspace(1, 3, 10000)])
+        waveform2=numpy.concatenate(5*(numpy.ones(1000),numpy.zeros(1000)))[None,:]
+        
+        
+        #s.start(200000, 100000, waveform2)
+        #reads=[s.read() for i in range(3)]
+        #reads.append(s.stop())
+        #for r in reads:
+         #   numpy.testing.assert_almost_equal(waveform2,r[:,1::2],2)
+        #High speed test
+        s.start(2500000, 2500000/2, waveform, waveform)
+        reads=[s.read() for i in range(3)]
+        reads.append(s.stop())
+        plot(waveform[0])
+        plot(waveform[0])
+        [plot(reads[i][0][::2]) for i in range(4)]
+        [plot(reads[i][1][::2]) for i in range(4)]
+        legend(['waveform','waveform2', 'input_AI0_0', 'input_AI0_1', 'input__AI1_0', 'input__AI1_1'])
+        show()
+        s.close()
+        
+
+        
+    @unittest.skip('')     
     def test_0_variable_length_ai_recording(self):
         t0=time.time()
         d=AnalogRecorder('Dev1/ai0:1' , 1000)
