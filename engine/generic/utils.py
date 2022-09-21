@@ -724,7 +724,10 @@ def hdf52object(h, vn, default_value = None):
         return default_value
 
 def object2npy(o,fn):
-    numpy.save(fn,object2array(o))
+    if isinstance(o,str):
+        numpy.save(o,object2array(fn))
+    else:
+        numpy.save(fn,object2array(o))
     
 def npy2object(fn):
     return array2object(numpy.load(fn))
