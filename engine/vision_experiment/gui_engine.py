@@ -1,6 +1,7 @@
 import time,tempfile,datetime
 import scipy.io
 import copy
+import sys
 try:
     import Queue
     import cPickle as pickle
@@ -189,6 +190,19 @@ class ExperimentHandler(object):
         valve_serial_port.write(f'{cmd}\r\n'.encode('utf-8'))
         self.printc(valve_serial_port.read(100).decode())
         valve_serial_port.close()
+        
+    def _get_custom_tag(self):
+        tag=''
+        if hasattr(self.machine_config, 'FILENAME_GENERATOR_CALLBACK'):#Call filename generator callback if exists
+            modulename='.'.join(self.machine_config.FILENAME_GENERATOR_CALLBACK.split('.')[:-1])
+            __import__(modulename)
+            ref=[v for k, v in sys.modules.items() if k ==modulename]
+            if len(ref)==1:
+                self.printc('Generating custom file name tag')
+                tag=getattr(ref[0], self.machine_config.FILENAME_GENERATOR_CALLBACK.split('.')[-1])(self.guidata.to_dict())
+            else:
+                raise RuntimeError()
+        return tag
             
     def _get_experiment_parameters(self):
         '''
@@ -236,7 +250,9 @@ class ExperimentHandler(object):
         experiment_parameters['outfolder']=os.path.join(self.dataroot, utils.timestamp2ymd(time.time(), separator=''))
         if not os.path.exists(experiment_parameters['outfolder']):
             os.makedirs(experiment_parameters['outfolder'])
-        experiment_parameters['outfilename']=experiment_data.get_recording_path(self.machine_config, experiment_parameters,prefix = 'data')
+        tag=self._get_custom_tag()
+        prefix='data_'+tag if tag!='' else 'data'
+        experiment_parameters['outfilename']=experiment_data.get_recording_path(self.machine_config, experiment_parameters,prefix = prefix)
         if self.machine_config.PLATFORM=='us_cortical':
             for pn in ['Protocol', 'Number of Trials', 'Motor Positions']:
                 experiment_parameters[pn]=self.guidata.read(pn)
