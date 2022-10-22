@@ -380,6 +380,8 @@ class DigitalIO(object):
                     pass#self.hwhandler[1].sendBreak(not bool(state))
                 elif pin ==3:
                     self.hwhandler[1].setRTS(not bool(state))
+                elif pin ==5:
+                    self.hwhandler[2].setRTS(not bool(state))
             else:
                 if pin==0:
                     self.hwhandler.sendBreak(not bool(state))
