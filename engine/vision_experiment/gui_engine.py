@@ -181,6 +181,11 @@ class ExperimentHandler(object):
         elif parameter_name=='Trigger Reward':
             duration=int(self.guidata.read('Valve Open Time'))
             self._send_valve_command(f'reward_pulse,{duration}')
+        elif parameter_name=='Main Tab':
+            pass
+        elif hasattr(self.machine_config, 'command_handler'):#Call command handler
+            self.printc('Custom command handler')
+            self.machine_config.command_handler(self, parameter_name, self.guidata.read(parameter_name))
             
             
     def _send_valve_command(self, cmd):
@@ -193,6 +198,7 @@ class ExperimentHandler(object):
         
     def _get_custom_tag(self):
         tag=''
+        self.printc("!!!!!!!!!!!!TODO: FILENAME_GENERATOR_CALLBACK should be a method of machine config")
         if hasattr(self.machine_config, 'FILENAME_GENERATOR_CALLBACK'):#Call filename generator callback if exists
             modulename='.'.join(self.machine_config.FILENAME_GENERATOR_CALLBACK.split('.')[:-1])
             __import__(modulename)
@@ -2626,6 +2632,7 @@ class MainUIEngine(GUIEngine,Analysis,ExperimentHandler, ElphysEngine):
         print('exphandler closed')
         GUIEngine.close(self)
 
+#OBSOLETE
 class CaImagingEngine(GUIEngine):
     def __init__(self, machine_config, log, socket_queues, unittest=False):
         GUIEngine.__init__(self, machine_config,log, socket_queues, unittest)
