@@ -181,6 +181,11 @@ class ExperimentHandler(object):
         elif parameter_name=='Trigger Reward':
             duration=int(self.guidata.read('Valve Open Time'))
             self._send_valve_command(f'reward_pulse,{duration}')
+        elif parameter_name=='Main Tab':
+            pass
+        elif hasattr(self.machine_config, 'command_handler'):#Call command handler
+            self.printc('Custom command handler')
+            self.machine_config.command_handler(self, parameter_name, self.guidata.read(parameter_name))
             
             
     def _send_valve_command(self, cmd):
@@ -193,6 +198,7 @@ class ExperimentHandler(object):
         
     def _get_custom_tag(self):
         tag=''
+        self.printc("!!!!!!!!!!!!TODO: FILENAME_GENERATOR_CALLBACK should be a method of machine config")
         if hasattr(self.machine_config, 'FILENAME_GENERATOR_CALLBACK'):#Call filename generator callback if exists
             modulename='.'.join(self.machine_config.FILENAME_GENERATOR_CALLBACK.split('.')[:-1])
             __import__(modulename)
@@ -653,8 +659,8 @@ class ExperimentHandler(object):
                             self.printc('MC file not renamed')
                     self.printc('MEA recording almost finished, please wait...')
                     time.sleep(self.machine_config.FILE_CHECK_INTERVAL/2+1)
-                    import filecmp
-                if filecmp.cmp(self.current_experiment_parameters['mcd_file'],dst) and 0:#Do not remove original file
+                import filecmp
+                if 0 and filecmp.cmp(self.current_experiment_parameters['mcd_file'],dst) and 0:#Do not remove original file
                         src=self.current_experiment_parameters['mcd_file']
                         self.printc(f'Delete {src}')
                         os.remove(src)
@@ -670,16 +676,19 @@ class ExperimentHandler(object):
                         time.sleep(10)
                         for i in range(len(files)):
                             shutil.copy(files[i], dstfiles[i])
+                            self.printc(f'Data saved to {dstfiles[i]}')
                     except:
                         if self.ask4confirmation('Stop MC recording manually. Press no for skipping renaming mcd file'):
                             time.sleep(2)
                             try:
                                 for i in range(len(files)):
                                     shutil.copy(files[i], dstfiles[i])
+                                    self.printc(f'Data saved to {dstfiles[i]}')
                             except:
                                 time.sleep(10)
                                 for i in range(len(files)):
                                     shutil.copy(files[i], dstfiles[i])
+                                    self.printc(f'Data saved to {dstfiles[i]}')
                         else:
                             self.printc('MC file not renamed')
         
@@ -2314,7 +2323,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         saved_hash=self.guidata.read('software_hash')
         if not numpy.array_equal(saved_hash, current_hash):
             #self.to_gui.put({'permanent_warning':'Software hashes do not match, make sure that the correct software version is used!'})
-            self.printc('(Software hashes do not match, make sure that the correct software version is used!)')
+            self.printc('Software hashes do not match, make sure that the correct software version is used!')
         if self.machine_config.PLATFORM=='ao_cortical':
             meshash=introspect.mes2hash()
             saved_hash=self.guidata.read('mes_hash')
@@ -2623,6 +2632,7 @@ class MainUIEngine(GUIEngine,Analysis,ExperimentHandler, ElphysEngine):
         print('exphandler closed')
         GUIEngine.close(self)
 
+#OBSOLETE
 class CaImagingEngine(GUIEngine):
     def __init__(self, machine_config, log, socket_queues, unittest=False):
         GUIEngine.__init__(self, machine_config,log, socket_queues, unittest)

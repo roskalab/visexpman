@@ -208,7 +208,7 @@ class Screen(BitCode):
             flags = pygame.DOUBLEBUF | pygame.HWSURFACE | pygame.OPENGL
             if self.config.FULLSCREEN:            
                 flags = flags | pygame.FULLSCREEN
-            self.screen = pygame.display.set_mode((int(self.screen_resolution['col']), int(self.screen_resolution['row'])), flags)
+            self.screen = pygame.display.set_mode((int(self.screen_resolution['col']), int(self.screen_resolution['row'])), flags, vsync=1)
             try:
                 pygame.display.set_caption(utils.get_window_title(self.config))
             except:
@@ -299,10 +299,10 @@ class Screen(BitCode):
         #TODO: mac needs the delay
         if hasattr(self.config, 'INSERT_FLIP_DELAY') and self.config.INSERT_FLIP_DELAY:
            if self.config.ALTERNATIVE_TIMING:
-               next_flip_time = self.flip_time_previous + 1.0 / self.config.SCREEN_EXPECTED_FRAME_RATE            
-               while True:
-                   if next_flip_time <= time.time():
-                       break
+               next_flip_time = self.flip_time_previous + 1.0 / self.config.SCREEN_EXPECTED_FRAME_RATE
+               #while True:
+               #    if next_flip_time <= time.time():
+               #        break
            else:
                self.elapsed_time = time.time() - self.flip_time_previous
                self.wait_time_left = self.frame_wait_time - self.elapsed_time
