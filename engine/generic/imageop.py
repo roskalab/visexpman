@@ -26,6 +26,26 @@ def rotate_folder(src, dst, rot):
         if not os.path.exists(os.path.dirname(fout)):
             os.makedirs(os.path.dirname(fout))
         rotated.save(fout)
+        
+def get_edge_pixels(img):
+    return numpy.concatenate((img[0,:],img[-1,:],img[:,0],img[:,-1]))
+        
+def object_touching_edges(img):
+    return get_edge_pixels(img).any()
+    
+def remove_edge_objects(img):
+    if len(img.shape)!=2:
+        raise NotImplementedError()
+    import scipy.ndimage
+    labels, n=scipy.ndimage.label(img)
+    edge_pixels=list(set(get_edge_pixels(labels).tolist()))
+    edge_pixels.sort()
+    edge_pixels=edge_pixels[1:]
+    if len(edge_pixels)==0:
+        return img
+    pixels2remove=numpy.concatenate([numpy.array(numpy.where(labels==ep)).T for ep in edge_pixels])
+    img[pixels2remove[:,0],pixels2remove[:,1]]=0
+    return img
     
 class ImageOpTest(unittest.TestCase):
     def test_01_rotate_folder(self):
