@@ -116,6 +116,10 @@ def object_centers(binary_image):
     centers=[numpy.array(numpy.where(labels==li)).mean(axis=1) for li in range(1,n+1)]
     return centers
     
+def filter_objects(img,min_size):
+    labels, n=scipy.ndimage.label(img)
+    return numpy.array([numpy.where(labels==li,1,0) for li in range(1,n+1) if numpy.where(labels==li)[0].shape[0]>min_size]).max(axis=0)
+    
 def remove_side_objects(binary_image):
     '''
     Remove objects touching image side
