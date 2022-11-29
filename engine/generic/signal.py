@@ -104,6 +104,7 @@ def central_object(binary_image):
     return numpy.where(labels==center,1,0)
        
 def find_biggest_object(binary_image):#Works also for 3d image
+    print('TODO: move this to a separate "image processing tool" module')
     if binary_image.sum()==0:
         return binary_image
     labels, n=scipy.ndimage.label(binary_image)
