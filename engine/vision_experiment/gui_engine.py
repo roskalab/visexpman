@@ -246,7 +246,9 @@ class ExperimentHandler(object):
         if 'ELPHYS_STIMULUS' in self.stimulus_config and self.stimulus_config['ELPHYS_STIMULUS']:
             experiment_duration = experiment.get_experiment_duration(classname, self.machine_config, source = stimulus_source_code)
         elif self.guidata.read('Enable'):
-            experiment_parameters['stimclass']=self.guidata.read('Protocol')[:-4]
+            experiment_parameters['stimclass']=self.guidata.read('Protocol')
+            if experiment_parameters['stimclass'][:-4]=='.mat':
+                experiment_parameters['stimclass']=experiment_parameters['stimclass'][:-4]
         experiment_parameters['duration']=experiment_duration
         experiment_parameters['status']='waiting'
         experiment_parameters['id']=experiment_data.get_id()
@@ -281,8 +283,14 @@ class ExperimentHandler(object):
                 #Generate waveform
                 fsample=self.guidata.read('Sample Rate') #self.machine_config.SYNC_RECORDER_SAMPLE_RATE
                 scale=self.guidata.read('Current Command Sensitivity') if mode=='Current Clamp' else self.guidata.read('Voltage Command Sensitivity')
-                if self.guidata.read('Protocol')=='Pulse train':
-                    amplitudes=numpy.array(list(map(float,self.guidata.read('Amplitudes').split(','))))
+                if self.guidata.read('Protocol')=='Pulse train' or self.guidata.read('Protocol')=='Pulse train steps':
+                    if self.guidata.read('Protocol')=='Pulse train steps':
+                        nsteps=int((self.guidata.read('Amplitude Max')-self.guidata.read('Amplitude Min'))/self.guidata.read('Amplitude Step size')+1)
+                        amplitudes=numpy.linspace(self.guidata.read('Amplitude Min'),self.guidata.read('Amplitude Max'),nsteps)
+                        amplitudes=numpy.repeat(amplitudes, self.guidata.read('Amplitude Repeats'))
+                    elif self.guidata.read('Protocol')=='Pulse train':
+                        amplitudes=numpy.array(list(map(float,self.guidata.read('Amplitudes').split(','))))
+                    self.printc(f"Amplitudes: {amplitudes}")
                     amplitudes/=scale
                     onsamples=int(fsample*self.guidata.read('On time')*1e-3)
                     offsamples=int(fsample*self.guidata.read('Off time')*1e-3)
@@ -785,7 +793,7 @@ class ExperimentHandler(object):
                     hh.command*=command_scale
                     hh.parameters=copy.deepcopy(self.current_experiment_parameters)
                     hh.software_environment=experiment_data.pack_software_environment()
-                    hh.machine_config=self.machine_config.todict()
+                    hh.machine_config=utils.object2array(self.machine_config.todict())
                     if 'GAMMA_CORRECTION' in hh.machine_config:
                         del hh.machine_config['GAMMA_CORRECTION']
                     kdel=[]
@@ -794,7 +802,9 @@ class ExperimentHandler(object):
                             kdel.append(k)
                     for k in kdel:
                         del hh.parameters[k]
-                    hh.save(['primary', 'command', 'unit', 'software_environment', 'machine_config', 'parameters'])
+                    for vn in ['primary', 'command', 'unit', 'software_environment', 'machine_config', 'parameters']:
+                        print(vn)
+                        hh.save(vn)
                     hh.close()
                     experiment_data.hdf52mat(fn, scale_sync=True)
                 elif 'stim' in self.machine_config.CONNECTIONS and not hasattr(self,  'ao'):
@@ -2106,7 +2116,11 @@ class Analysis(object):
             try:
                 fs=h.findvar('configs')['machine_config']['SYNC_RECORDER_SAMPLE_RATE']
             except TypeError:
-                fs=h.findvar('machine_config')['SYNC_RECORDER_SAMPLE_RATE']
+                fs=h.findvar('machine_config')
+                if 'SYNC_RECORDER_SAMPLE_RATE' in fs:
+                    fs=fs['SYNC_RECORDER_SAMPLE_RATE']
+                else:
+                    fs=utils.array2object(fs)['SYNC_RECORDER_SAMPLE_RATE']
             x=[]
             y=[]
             t=numpy.arange(sync.shape[0])*(1.0/fs)
@@ -2527,15 +2541,16 @@ class ElphysEngine():
             mode=self.guidata.read('Clamp Mode')
             #Scale elphys
             if 'Voltage' in mode:
-                unit='nA, command mV'
-                scale=self.guidata.read('Current Gain')*1e-3
+                unit='membrane current nA, command mV'
+                scale=1/self.guidata.read('Current Gain')
                 command_scale=self.guidata.read("Voltage Command Sensitivity")
             elif 'Current' in mode:
-                unit='mV, command: nA'
-                scale=self.guidata.read('Voltage Gain')
+                unit='membrane voltage mV, command: nA'
+                scale=1/(self.guidata.read('Voltage Gain')*1e3)
                 command_scale=self.guidata.read("Current Command Sensitivity")*1e-3
             fn= self.filename if hasattr(self, 'filename') else str(self.current_experiment_parameters['stimclass'])
-            scale*=1e-3
+            #scale*=1e-3
+            self.command_scale=command_scale
             if self.guidata.read('Show raw voltage'):
                 scale=1.0
                 command_scale=1.0

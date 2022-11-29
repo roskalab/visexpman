@@ -751,7 +751,7 @@ def pack_configs(self):
     configs = {}
     configs['serialized'] = {}
     for confname in ['machine_config', 'experiment_config']:
-        if hasattr(self, confname):#Experiment config might not be available
+        if hasattr(self, confname) and getattr(self, confname) is not None:#Experiment config might not be available
             configs['serialized'][confname] = copy.deepcopy(getattr(self,confname).serialize())
             configs[confname] = copy.deepcopy(getattr(self,confname).todict())
             if 'GAMMA_CORRECTION' in configs[confname]:

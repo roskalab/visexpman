@@ -875,7 +875,7 @@ class MainUI(gui.VisexpmanMainWindow):
             self.params_config[-1]['children'][0]['readonly']=True#Disable baseline lenght and threshold
             self.params_config[-1]['children'][1]['readonly']=True#Disable baseline lenght and threshold
         elif self.machine_config.PLATFORM in ['elphys']:
-                protocols=['Pulse train']
+                protocols=['Pulse train','Pulse train steps']
                 protocols.extend([os.path.basename(f) for f in fileop.listdir(self.machine_config.PROTOCOL_PATH) if os.path.splitext(f)[1]=='.mat'])
                 pars=[
                                 {'name': 'Displayed signal length', 'type': 'float', 'value': 20.0,  'suffix': 's'},
@@ -896,6 +896,10 @@ class MainUI(gui.VisexpmanMainWindow):
                                     {'name': 'Enable', 'type': 'bool', 'value': False},
                                     {'name': 'Protocol', 'type': 'list', 'value': '',  'values': protocols},
                                     {'name': 'Amplitudes', 'type': 'str', 'value': ''},
+                                    {'name': 'Amplitude Min', 'type': 'float', 'value': 0},
+                                    {'name': 'Amplitude Max', 'type': 'float', 'value': 2},
+                                    {'name': 'Amplitude Step size', 'type': 'float', 'value': 1},
+                                    {'name': 'Amplitude Repeats', 'type': 'float', 'value': 1},
                                     {'name': 'Amplitude unit', 'type': 'list', 'value': 'pA',  'values': ['pA', 'mV']},
                                     {'name': 'Wait time', 'type': 'float', 'value': 2000,  'suffix': 'ms', 'decimals':6},
                                     {'name': 'On time', 'type': 'float', 'value': 500,  'suffix': 'ms'},
