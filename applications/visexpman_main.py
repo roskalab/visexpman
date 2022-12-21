@@ -40,6 +40,8 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         if not introspect.is_test_running() and machine_config.MEASURE_FRAME_RATE:
             #Call measure framerate by putting a message into queue.
             self.socket_queues['fromsocket'].put({'function': 'measure_frame_rate', 'kwargs' :{'duration':1.0, 'background_color': self.stim_context['background_color']}})
+        if hasattr(self.machine_config, 'init_stim_idle_command_handler'):
+            self.machine_config.init_stim_idle_command_handler(self)
 
     def load_stim_context(self):
         '''
@@ -443,6 +445,10 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         When user changes Experiment config name (stimulus), the selected experiment config
         is sent to stim. Pre experiment is displayed if available
         '''
+
+    def stim_idle_command_handler(self,parameters):
+        if hasattr(self.machine_config, 'stim_idle_command_handler'):
+            self.machine_config.stim_idle_command_handler(parameters)
         
     def start_stimulus(self,parameters):
         #Create experiment config class from experiment source code
