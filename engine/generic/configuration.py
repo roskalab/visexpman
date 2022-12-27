@@ -186,7 +186,7 @@ class Config(object):
         
     def serialize(self):
         config_modified = copy.copy(self)
-        removable_attributes = ['machine_config', 'runnable', 'pre_runnable', 'queues', 'GAMMA_CORRECTION']
+        removable_attributes = ['machine_config', 'runnable', 'pre_runnable', 'queues', 'GAMMA_CORRECTION','parent', 'protocol_instance']
         for a in removable_attributes:
             setattr(config_modified, a, 0)
         return utils.object2array(config_modified)

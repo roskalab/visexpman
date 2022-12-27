@@ -77,6 +77,8 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         '''
         if self.exit:
             return 'terminate'
+        if hasattr(self.machine_config, 'stim_idle_periodic_callback'):
+            self.machine_config.stim_idle_periodic_callback()
         #Check keyboard
         from visexpman.engine.generic.graphics import check_keyboard
         keys = check_keyboard()
