@@ -7,7 +7,8 @@ import time,unittest
 import copy,logging,tempfile
 import queue as Queue
 import PyQt5.Qt as Qt
-import PyQt5.QtGui as QtGui
+#import PyQt5.QtGui as QtGui
+import PyQt5.QtWidgets as QtGui
 import PyQt5.QtCore as QtCore
 import pyqtgraph
 import pyqtgraph.console
