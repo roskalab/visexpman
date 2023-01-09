@@ -453,6 +453,8 @@ class StimulationLoop(ServerLoop, StimulationScreen):
             self.machine_config.stim_idle_command_handler(parameters)
         
     def start_stimulus(self,parameters):
+        if hasattr(self.machine_config, 'deinit_stim_idle_command_handler'):
+            self.machine_config.deinit_stim_idle_command_handler(self)
         #Create experiment config class from experiment source code
         if 'experiment_config_source_code' in parameters:
             introspect.import_code(parameters['experiment_config_source_code'],'experiment_module', add_to_sys_modules=1)
@@ -493,6 +495,8 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         getattr(runnable, 'run' if parameters.get('stimulus_only', False) else 'execute')()
         self.stim_context['last_experiment_parameters'] = parameters
         self.stim_context['last_experiment_stimulus_frame_info'] = runnable.stimulus_frame_info
+        if hasattr(self.machine_config, 'init_stim_idle_command_handler'):
+            self.machine_config.init_stim_idle_command_handler(self)
 
 def run_main_ui(context):
     context['logger'].add_source('engine')
