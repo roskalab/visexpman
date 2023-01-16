@@ -3,14 +3,9 @@ import time
 import numpy
 import os.path
 import itertools
-try:
-    import PyQt4.Qt as Qt
-    import PyQt4.QtGui as QtGui
-    import PyQt4.QtCore as QtCore
-except ImportError:
-    import PyQt5.Qt as Qt
-    import PyQt5.QtGui as QtGui
-    import PyQt5.QtCore as QtCore
+import PyQt5.Qt as Qt
+import PyQt5.QtWidgets as QtGui
+import PyQt5.QtCore as QtCore
 import pyqtgraph
 
 from visexpman.engine.generic import stringop,utils,gui,signal,fileop,introspect,colors

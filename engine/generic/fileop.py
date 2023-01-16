@@ -866,7 +866,7 @@ def pngsave(im, file):
     # and save
     im.save(file, "PNG", pnginfo=meta)
     
-def download_folder(server, user, src,dst,port=22,password=None):
+def download_folder(server, user, src,dst,port=22,password=None, delete_src=False):
     '''
     Download a folder from a remote server using ssh connection
     '''
@@ -887,6 +887,14 @@ def download_folder(server, user, src,dst,port=22,password=None):
     if os.path.exists(localzip):
         os.remove(localzip)
     sftp.get(tmpzip,localzip)
+    if delete_src:
+        i,o,e4=ssh.exec_command('rm -r {0}'.format(src))
+        #i,o,e5=ssh.exec_command('mkdir {0}'.format(src))
+        #for e in [e4, e5]:
+        for e in [e4]:
+            emsg=e.readline()
+            if emsg!='':
+                raise RuntimeError(emsg)
     zip_ref = zipfile.ZipFile(localzip, 'r')
     zip_ref.extractall(dst)
     zip_ref.close()

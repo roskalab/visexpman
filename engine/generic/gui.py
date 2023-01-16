@@ -8,7 +8,8 @@ import copy,logging,tempfile
 import queue as Queue
 import PyQt5.Qt as Qt
 #import PyQt5.QtGui as QtGui
-import PyQt5.QtWidgets as QtGui
+import PyQt5.QtWidgets as QtWidgets
+import PyQt5.QtGui as QtGui
 import PyQt5.QtCore as QtCore
 import pyqtgraph
 import pyqtgraph.console
@@ -101,7 +102,7 @@ class VisexpmanMainWindow(Qt.QMainWindow):
         self.setWindowTitle('{0}{1}' .format(utils.get_window_title(self.machine_config), ' - ' + animal_file if len(animal_file)>0 else ''+tag))
         
     def _add_dockable_widget(self, title, position, allowed_areas, widget):
-        dock = QtGui.QDockWidget(title, self)
+        dock = QtWidgets.QDockWidget(title, self)
         dock.setAllowedAreas(allowed_areas)
         dock.setWidget(widget)
         self.addDockWidget(position, dock)
@@ -325,11 +326,11 @@ class SimpleAppWindow(SimpleGuiWindow):
     Deprecated
     '''
 
-class Progressbar(QtGui.QWidget):
+class Progressbar(QtWidgets.QWidget):
     def __init__(self, maxtime, name = '', autoclose = False, timer=False):
         self.maxtime = maxtime
         self.autoclose = autoclose
-        QtGui.QWidget.__init__(self)
+        QtWidgets.QWidget.__init__(self)
         self.setWindowTitle(name)
         self.progressbar = QtGui.QProgressBar(self)
         self.progressbar.setTextVisible(False)
@@ -364,7 +365,7 @@ class Progressbar(QtGui.QWidget):
                 self.close()
         self.progressbar.setValue(dt)
 
-class ToolBar(QtGui.QToolBar):
+class ToolBar(QtWidgets.QToolBar):
     '''
     Toolbar holding the following shortcuts:
     -experiment start, stop, snap, live start, exit
@@ -373,7 +374,7 @@ class ToolBar(QtGui.QToolBar):
         self.icon_names = icon_names
         self.parent=parent
         self.icon_folder = icon_folder
-        QtGui.QToolBar.__init__(self, 'Toolbar', parent)
+        QtWidgets.QToolBar.__init__(self, 'Toolbar', parent)
         self.add_buttons()
         self.setIconSize(QtCore.QSize(toolbar_size, toolbar_size))
         self.setFloatable(False)
@@ -381,17 +382,17 @@ class ToolBar(QtGui.QToolBar):
         
     def add_buttons(self):
         for button in self.icon_names:
-            a = QtGui.QAction(get_icon(button,self.icon_folder), stringop.to_title(button), self)
+            a = QtWidgets.QAction(get_icon(button,self.icon_folder), stringop.to_title(button), self)
             a.triggered.connect(getattr(self.parent, button+'_action'))
             self.addAction(a)
             
     def hideEvent(self,e):
         self.setVisible(True)
         
-class Debug(QtGui.QTabWidget):
+class Debug(QtWidgets.QTabWidget):
     def __init__(self,parent):
         self.parent=parent
-        QtGui.QTabWidget.__init__(self,parent)
+        QtWidgets.QTabWidget.__init__(self,parent)
         self.log = TextOut(self)
         self.console = PythonConsole(self)
         self.addTab(self.log, 'Log')
@@ -451,10 +452,10 @@ class ParameterTable(ParameterTree):
         else:
             return values, paths, refs
 
-class AddNote(QtGui.QWidget):
+class AddNote(QtWidgets.QWidget):
     def __init__(self, parent,text,togui_queue):
         self.togui_queue=togui_queue
-        QtGui.QWidget.__init__(self, parent)
+        QtWidgets.QWidget.__init__(self, parent)
         self.text=QtGui.QTextEdit(self)
         self.text.setPlainText(text)
         self.text.ensureCursorVisible()
@@ -478,9 +479,9 @@ class AddNote(QtGui.QWidget):
             self.emit(QtCore.SIGNAL('addnote'),str(self.text.toPlainText()))
         self.close()
             
-class TextOut(QtGui.QTextEdit):
+class TextOut(QtWidgets.QTextEdit):
     def __init__(self, parent):
-        QtGui.QTextEdit.__init__(self, parent)
+        QtWidgets.QTextEdit.__init__(self, parent)
         self.setPlainText('')
         self.setReadOnly(True)
         self.ensureCursorVisible()
@@ -571,7 +572,7 @@ class TimeAxisItemYYMMDD(pyqtgraph.AxisItem):
         return [QtCore.QDate(self.year,self.month,self.day).addDays(value).toString('yyyy-MM-dd') for value in values]
 
             
-class TabbedPlots(QtGui.QWidget):
+class TabbedPlots(QtWidgets.QWidget):
     def __init__(self, parent,names,plot_kwargs={}):
         QtGui.QWidget.__init__(self, parent)
         self.names=names
@@ -582,7 +583,7 @@ class TabbedPlots(QtGui.QWidget):
             setattr(self, pn, p)
             self.tab.addTab(p, pn)
             
-class TabbedImages(QtGui.QWidget):
+class TabbedImages(QtWidgets.QWidget):
     def __init__(self, parent,names):
         QtGui.QWidget.__init__(self, parent)
         self.names=names
@@ -806,13 +807,13 @@ def index2filename(index):
     filename = ''.join(filename)
     return filename
         
-class FileTree(QtGui.QTreeView):
+class FileTree(QtWidgets.QTreeView):
     def __init__(self,parent, root, filterlist = []):
         if not os.path.exists(root):
             raise RuntimeError('{0} does not exists, file tree cannot be created'.format(root))
         self.parent=parent
-        QtGui.QTreeView.__init__(self,parent)
-        self.model = QtGui.QFileSystemModel(self)
+        QtWidgets.QTreeView.__init__(self,parent)
+        self.model = QtWidgets.QFileSystemModel(self)
         self.setModel(self.model)
         self.set_root(root)
         if hasattr(QtCore, 'QStringList'):
@@ -833,10 +834,10 @@ class FileTree(QtGui.QTreeView):
     def set_root(self,root):
         self.setRootIndex(self.model.setRootPath( root ))
 
-class ArrowButtons(QtGui.QGroupBox):
+class ArrowButtons(QtWidgets.QGroupBox):
     def __init__(self, name, parent):
         self.parent=parent
-        QtGui.QGroupBox.__init__(self, name, parent)
+        QtWidgets.QGroupBox.__init__(self, name, parent)
         self.setAlignment(Qt.Qt.AlignHCenter)
         config = {'up': 'arrow_up', 'down': 'arrow_down', 'left': 'previous_roi', 'right': 'next_roi'}
         self.buttons={}
@@ -873,7 +874,7 @@ class ArrowButtons(QtGui.QGroupBox):
     def arrow_clicked(self, direction):
         '''User should redefine this'''
         
-class ImageAdjust(QtGui.QWidget):
+class ImageAdjust(QtWidgets.QWidget):
     '''
     Default value in input field:
         self.input.setText(TEXT)
@@ -895,21 +896,7 @@ class ImageAdjust(QtGui.QWidget):
         self.high.setFixedWidth(100)
         self.low.setFixedWidth(100)
         
-
-
-class GroupBox(QtGui.QGroupBox):#OBSOLETE
-    def __init__(self, parent, name):
-        QtGui.QGroupBox.__init__(self, name, parent)
-        self.create_widgets()
-        self.create_layout()
-        
-    def create_widgets(self):
-        pass
-        
-    def create_layout(self):
-        pass
-
-class LabeledInput(QtGui.QWidget):
+class LabeledInput(QtWidgets.QWidget):
     '''
     Default value in input field:
         self.input.setText(TEXT)
@@ -930,7 +917,7 @@ class LabeledInput(QtGui.QWidget):
         self.layout.addWidget(self.input, 0, 1)
         self.setLayout(self.layout)
 
-class LabeledComboBox(QtGui.QWidget):
+class LabeledComboBox(QtWidgets.QWidget):
     '''
     Default value in input field:
         self.input.setText(TEXT)
@@ -961,7 +948,7 @@ class LabeledComboBox(QtGui.QWidget):
         self.input.blockSignals(False)
         self.input.addItems(items)
         
-class LabeledListWidget(QtGui.QWidget):
+class LabeledListWidget(QtWidgets.QWidget):
     '''
     Default value in input field:
         self.input.setText(TEXT)
@@ -988,28 +975,28 @@ class LabeledListWidget(QtGui.QWidget):
         self.layout.addWidget(self.list, 1, 0)
         self.setLayout(self.layout)
         
-class LabeledCheckBox(QtGui.QWidget):
+class LabeledCheckBox(QtWidgets.QWidget):
     '''
     Default value in input field:
     self.input.setText(TEXT)
     '''
     def __init__(self, parent, label):
-        QtGui.QWidget.__init__(self, parent)
+        QtWidgets.QWidget.__init__(self, parent)
         self.label = label
         self.create_widgets()
         self.create_layout()
 
     def create_widgets(self):
-        self.labelw = QtGui.QLabel(self.label, self)
-        self.input = QtGui.QCheckBox(self)
+        self.labelw = QtWidgets.QLabel(self.label, self)
+        self.input = QtWidgets.QCheckBox(self)
 
     def create_layout(self):
-        self.layout = QtGui.QGridLayout()
+        self.layout = QtWidgets.QGridLayout()
         self.layout.addWidget(self.labelw, 0, 0)
         self.layout.addWidget(self.input, 0, 1)
         self.setLayout(self.layout)
         
-class LabeledSlider(QtGui.QWidget):
+class LabeledSlider(QtWidgets.QWidget):
     def __init__(self, parent, label):
         QtGui.QWidget.__init__(self, parent)
         self.label = label
@@ -1028,7 +1015,7 @@ class LabeledSlider(QtGui.QWidget):
         self.layout.addWidget(self.valuelabel, 0, 2)
         self.setLayout(self.layout)
         
-class PushButtonWithParameter(QtGui.QWidget):
+class PushButtonWithParameter(QtWidgets.QWidget):
     '''
     Default value in input field:
         self.input.setText(TEXT)
@@ -1049,90 +1036,7 @@ class PushButtonWithParameter(QtGui.QWidget):
         self.layout.addWidget(self.input, 0, 1, 1, 2)
         self.layout.addWidget(self.button, 0, 0)
         self.setLayout(self.layout)
-        
-class ParameterTableOBSOLETE(QtGui.QTableWidget):#Obsolete
-    '''
-    A special QTable with two columns: first holds the parameter names, the second holds the corresponding parameter values
-    '''
-    def __init__(self, parent):
-        QtGui.QTableWidget.__init__(self, parent)
-        self.setColumnCount(2)
-        self.setHorizontalHeaderLabels(QtCore.QStringList(['Parameter name', 'value']))
-        self.verticalHeader().setDefaultSectionSize(20)
-        
-    def set_values(self, parameters, parname_order=None):
-        '''
-        Sets the content of the table.
-        parameters: dictionary: keys: parameter names, values: parameter values.
-        '''
-        self.parameters = parameters
-        if parameters.has_key('self.editable') and parameters['self.editable'] == 'False':
-            lock=True
-        else:
-            lock=False
-        if parameters.has_key('self.editable'):
-            del parameters['self.editable']
-        if parameters.has_key('self.editable'):
-            nrows = len(parameters)-1
-        else:
-            nrows = len(parameters)
-        self.setRowCount(nrows)
-        self.setVerticalHeaderLabels(QtCore.QStringList(nrows*['']))
-        for row in range(nrows):
-            if parname_order is None:
-                parname = str(parameters.keys()[row])
-            else:
-                parname = parname_order[row]
-            item = QtGui.QTableWidgetItem(parname)
-            item.setToolTip(parname)
-            item.setFlags(QtCore.Qt.ItemIsSelectable| QtCore.Qt.ItemIsEnabled)
-            self.setItem(row, 0, item)#Set parameter name
-            #Setting value of table element depends on the widget type
-            if self.cellWidget(row,1) is None:
-                value = str(parameters[parname]).split('#')
-                if len(value) == 2:
-                    comment = value[1]
-                value = value[0]
-                item=QtGui.QTableWidgetItem(value)
-                if 'comment' in locals():
-                    item.setToolTip(comment)
-                if lock:
-                    item.setFlags(QtCore.Qt.ItemIsSelectable|QtCore.Qt.ItemIsEnabled)
-                self.setItem(row, 1, item)
-            elif hasattr(self.cellWidget(row,1), 'date'):
-                d, m, y=map(int, str(parameters[parname]).split('-'))
-                self.cellWidget(row,1).setDate(QtCore.QDate(y, m, d))
-            elif hasattr(self.cellWidget(row,1), 'currentText'):
-                #Find out index
-                items = get_combobox_items(self.cellWidget(row,1))
-                if str(parameters[parname]) in items:
-                    index = items.index(str(parameters[parname]))
-                    self.cellWidget(row,1).setCurrentIndex(index)
-                elif self.cellWidget(row,1).isEditable():
-                    self.cellWidget(row,1).setEditText(str(parameters[parname]))
-
-    def get_values(self):
-        '''
-        Return values of table in a dictionary format
-        '''
-        current_values = {}
-        for row in range(self.rowCount()):
-            parname = str(self.item(row,0).text())
-            if hasattr(self.item(row,1), 'text') and self.cellWidget(row,1) is None and hasattr(self.item(row,1), 'toolTip'):
-                    current_values[parname] = [str(self.item(row,1).text()), str(self.item(row,1).toolTip())]
-            elif hasattr(self.item(row,1), 'text'):
-                current_values[parname] = str(self.item(row,1).text())
-            elif hasattr(self.cellWidget(row,1), 'date'):
-                date = self.cellWidget(row,1).date()
-                current_values[parname] = '{0}-{1}-{2}'.format(date.day(), date.month(), date.year())
-            elif hasattr(self.cellWidget(row,1), 'currentText'):
-                current_values[parname] = str(self.cellWidget(row,1).currentText())
-            elif self.item(row,1) is None:
-                current_values[parname] = ''
-            else:
-                raise NotImplementedError('Reader for this type of widget is not implemented {0}. Parameter name: {1}'.format(self.item(row,1), parname))
-        return current_values
-        
+               
 def update_combo_box_list(self, widget, new_list,  selected_item = None):
     current_value = widget.currentText()
     try:
@@ -1153,33 +1057,6 @@ def update_combo_box_list(self, widget, new_list,  selected_item = None):
         widget.setCurrentIndex(new_list.index(selected_item))
     else:
         widget.setCurrentIndex(current_index)
-
-def load_experiment_config_names(config, widget):#OBSOLETE
-    '''
-    Loads all experiment config names and adds them to a dropdown widget
-    OBSOLETE
-    '''
-    if hasattr(config, 'user'):
-        import visexpman
-        experiment_config_list = utils.fetch_classes('visexpman.users.' + config.user,  required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig, direct = False)
-        experiment_config_names = []
-        for experiment_config in experiment_config_list:
-            experiment_config_names.append(experiment_config[1].__name__)
-        experiment_config_names.sort()
-        widget.addItems(QtCore.QStringList(experiment_config_names))
-        try:
-            if hasattr(config, 'EXPERIMENT_CONFIG'):
-                widget.setCurrentIndex(experiment_config_names.index(config.EXPERIMENT_CONFIG))
-        except ValueError:
-            pass
-    return experiment_config_list
-    
-class WidgetControl(object):#OBSOLETE
-    def __init__(self, poller, config, widget):
-        self.config = config
-        self.poller = poller
-        self.widget = widget
-        self.printc = self.poller.printc
     
 def connect_and_map_signal(self, widget, mapped_signal_parameter, widget_signal_name = 'clicked'):
     self.signal_mapper.setMapping(widget, QtCore.QString(mapped_signal_parameter))
