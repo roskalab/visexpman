@@ -90,7 +90,7 @@ class BitCode(object):
         bit_pattern = (int(block_bit == True)<<16) | frame_cnt<<8 | 0xD5
         for bit in range(self.bitcode_nbits):
             if((bit_pattern & (1<<bit))):
-                 color = [1,1,1]
+                 color = [1.0,1.0,1.0]
             else:
                  color = [0,0,0]
             glColor3fv(color)
