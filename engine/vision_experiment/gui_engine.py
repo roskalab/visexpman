@@ -2542,11 +2542,11 @@ class ElphysEngine():
             #Scale elphys
             if 'Voltage' in mode:
                 unit='membrane current nA, command mV'
-                scale=1/self.guidata.read('Current Gain')
+                scale=self.guidata.read('Current Gain')
                 command_scale=self.guidata.read("Voltage Command Sensitivity")
             elif 'Current' in mode:
-                unit='membrane voltage mV, command: nA'
-                scale=1/(self.guidata.read('Voltage Gain')*1e3)
+                unit='membrane voltage mV, command: pA'
+                scale=(self.guidata.read('Voltage Gain')/1e3)
                 command_scale=self.guidata.read("Current Command Sensitivity")*1e-3
             fn= self.filename if hasattr(self, 'filename') else str(self.current_experiment_parameters['stimclass'])
             #scale*=1e-3
