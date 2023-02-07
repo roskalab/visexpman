@@ -453,11 +453,11 @@ def dirListing(directory='~', ext = '', prepend='', dflag = False, sortit = Fals
 
 ################# Text file related ####################
 
-def read_text_file(path):
+def read_text_file(path,mode='rt'):
     '''
     Read content of a file to string
     '''
-    f = open(path,  'rt')
+    f = open(path,  mode)
     txt =  f.read(os.path.getsize(path))
     f.close()
     return txt
