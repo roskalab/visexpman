@@ -874,19 +874,23 @@ class ExperimentHandler(object):
                 #Export timing to csv file
                 self._timing2csv(filename)
             if self.machine_config.PLATFORM=='elphys' and not aborted and not self.guidata.read('Enable') and not self.guidata.read('Enable Psychotoolbox') and 'ELPHYS_STIMULUS' not in self.stimulus_config:
-                hh=experiment_data.CaImagingData(outfile)
-                hh.load()
+                self.hh=experiment_data.CaImagingData(outfile)
+                self.hh.load()
                 self.to_gui.put({'plot_title': os.path.dirname(outfile)+'<br>'+os.path.basename(outfile)})
 #                if self.guidata.read('Displayed signal length')==0:
 #                    self._plot_elphys(hh.sync)
                 try:
                     self.printc('Check timing signals')
-                    hh.sync2time()
-                    hh.check_timing(check_frame_rate=True)
+                    self.hh.sync2time()
+                    warning=self.hh.check_timing(check_frame_rate=True)
+                    if len(warning):
+                        for w in warning:
+                            self.printc(f'Warning: {w}')
                 except:
+                    self.printc(traceback.format_exc().replace('Error',  'Errror'))
                     self.printc('Checking timing signals failed')
-#                    self.printc(traceback.format_exc())
-                hh.close()
+                    
+                self.hh.close()
         self.to_gui.put({'update_status':'idle'})
         
     def enable_plot_signals(self,enable):

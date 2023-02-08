@@ -229,6 +229,9 @@ class CaImagingData(supcl):
                 return
         for vn in ['sync', 'configs', 'sync_scaling', 'parameters']:
             self.load(vn)
+        if not hasattr(self, 'configs'):
+            self.load('machine_config')
+            self.configs={'machine_config': self.machine_config}
         if self.sync.dtype.name not in ['float', 'uint8', 'uint16', 'float64', 'float32']:
             raise NotImplementedError('{0}'.format(self.sync.dtype.name))
         fsample=float(self.configs['machine_config']['SYNC_RECORDER_SAMPLE_RATE'])
@@ -294,6 +297,7 @@ class CaImagingData(supcl):
             
     def check_timing(self, check_frame_rate=True):
         errors=[]
+        warning=[]
         if hasattr(self,  'timg'):
             if self.timg.shape[0]==0 and self.configs['machine_config']['TIMG_SYNC_INDEX']!=-1:
                 errors.append('No imaging sync signal detected.')
@@ -305,7 +309,7 @@ class CaImagingData(supcl):
             #Check frame rate
             if not hasattr(self,  'stimulus_frame_info'):
                 self.load('stimulus_frame_info')
-            sfi=self.stimulus_frame_info
+            sfi=self.stimulus_frame_info if hasattr(self,  'stimulus_frame_info') else []
             if 'laser' in str(self.parameters['stimclass']).lower() or 'led' in str(self.parameters['stimclass']).lower():
                 pass
             elif len([1 for s in sfi if 'block_name' in s.keys()])>0:
@@ -322,6 +326,20 @@ class CaImagingData(supcl):
                 error=measured_frame_rate-self.configs['machine_config']['SCREEN_EXPECTED_FRAME_RATE']
                 if numpy.where(abs(error)>FRAME_RATE_TOLERANCE)[0].shape[0]>0:
                     errors.append('Measured frame rate(s): {0} Hz, mean : {2} Hz, expected frame rate: {1} Hz'.format(measured_frame_rate,self.configs['machine_config']['SCREEN_EXPECTED_FRAME_RATE'], measured_frame_rate.mean()))
+            elif self.configs['machine_config']['ENABLE_SYNC']=='main':#Sync signals are recorded by GUI
+                sig=self.sync[:,self.configs['machine_config']['TFRAME_FLIP_SYNC_INDEX']]
+                self.tflip=signal.trigger_indexes(sig)/float(self.configs['machine_config']['SYNC_RECORDER_SAMPLE_RATE'])
+                measured_frame_rate=1/numpy.diff(self.tflip[::2])
+                error=measured_frame_rate-self.configs['machine_config']['SCREEN_EXPECTED_FRAME_RATE']
+                if self.tflip.shape[0]==0:
+                    errors.append('No stimulus frmae timing recorded')
+                elif numpy.where(abs(error)>FRAME_RATE_TOLERANCE)[0].shape[0]>0:
+                    errors.append('Measured frame rate(s): {0} Hz, mean : {2} Hz, expected frame rate: {1} Hz'.format(measured_frame_rate,self.configs['machine_config']['SCREEN_EXPECTED_FRAME_RATE'], measured_frame_rate.mean()))
+                if self.tstim.shape[0]==0:
+                    warning.append('No stimulus block timing signal detected')
+                dropped_frames=signal.trigger_indexes(self.sync[:,self.configs['machine_config']['DROPPED_FRAME_INDEX']])[::2]
+                if dropped_frames.shape[0]>3:
+                    warning.append(f'{dropped_frames.shape[0]} dropped frames were detected. Check stimulus computer!')
             else:
                 raise NotImplementedError()
         if hasattr(self,  'tcam'):
@@ -329,6 +347,7 @@ class CaImagingData(supcl):
                 errors.append('{0} of stimulus was not recorded with eyecamera'.format('Beginning' if self.tcam[0]>self.tstim[0] else 'End') )
         if len(errors)>0:
             raise RuntimeError('\r\n'.join(errors))
+        return warning
             
     def check_runwheel_signals(self):
         '''
