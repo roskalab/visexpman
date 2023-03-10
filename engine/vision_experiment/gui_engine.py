@@ -227,6 +227,7 @@ class ExperimentHandler(object):
         else:
             experiment_duration = experiment.get_experiment_duration(classname, self.machine_config, source = stimulus_source_code)
         self.stimulus_config=experiment.read_stimulus_parameters(classname, filename, self.machine_config)
+        #self.stimulus_config usage is not well designed: at alactrical stimulus it should not exists
         if self.santiago_setup and experiment_duration>240:
             if not self.ask4confirmation('Longer recordings than 240 s may result memory error. Do you want to continue? {0}'.format(experiment_duration)):
                 return
@@ -744,6 +745,9 @@ class ExperimentHandler(object):
         hh.machine_config=self.machine_config.todict()
         if 'GAMMA_CORRECTION' in hh.machine_config:
             del hh.machine_config['GAMMA_CORRECTION']
+        for k, v in hh.machine_config.items():
+            if v is None:
+                hh.machine_config[k]='None'
         hh.parameters=self.current_experiment_parameters
         kdel=[]
         for k, v in hh.parameters.items():
@@ -791,21 +795,11 @@ class ExperimentHandler(object):
                     scale*=1e-3
                     hh.primary/=scale
                     hh.command*=command_scale
-                    hh.parameters=copy.deepcopy(self.current_experiment_parameters)
-                    hh.software_environment=experiment_data.pack_software_environment()
-                    hh.machine_config=utils.object2array(self.machine_config.todict())
-                    if 'GAMMA_CORRECTION' in hh.machine_config:
-                        del hh.machine_config['GAMMA_CORRECTION']
-                    kdel=[]
-                    for k, v in hh.parameters.items():
-                        if v is None:
-                            kdel.append(k)
-                    for k in kdel:
-                        del hh.parameters[k]
-                    for vn in ['primary', 'command', 'unit', 'software_environment', 'machine_config', 'parameters']:
+                    for vn in ['primary', 'command', 'unit']:
                         print(vn)
                         hh.save(vn)
                     hh.close()
+                    self.save_envconfig(fn)
                     experiment_data.hdf52mat(fn, scale_sync=True)
                 elif 'stim' in self.machine_config.CONNECTIONS and not hasattr(self,  'ao'):
                     outfile=self.current_experiment_parameters['outfilename']
@@ -2576,7 +2570,14 @@ class ElphysEngine():
             labels={"left": unit,  "bottom": "time [s]"}
             self.yrange=[self.guidata.read('Y min'),  self.guidata.read('Y max')] if not self.guidata.read('Y axis autoscale') else None
             thr=2.5
-            sig=sync[index:, self.machine_config.TSTIM_SYNC_INDEX]
+            
+            if 'elphys_waveform' not in self.current_experiment_parameters and 'ELPHYS_STIMULUS' in self.stimulus_config and self.stimulus_config['ELPHYS_STIMULUS']:
+                #Visualize LED flashes
+                sig=sync[index:, self.machine_config.TSTIM_LASER_SYNC_INDEX]
+                thr=self.stimulus_config['AMPLITUDE']/2
+            else:
+                #Visualize stimulus blocks
+                sig=sync[index:, self.machine_config.TSTIM_SYNC_INDEX]
             tsync=signal.detect_edges(sig,thr)/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
             if sig[0]>thr:
                 tsync=numpy.insert(tsync, 0, 0)
