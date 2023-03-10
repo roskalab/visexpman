@@ -267,7 +267,7 @@ class SimpleGuiWindow(Qt.QMainWindow):
             self.log(error_messages.get(),'error')
             
     def add_dockwidget(self, widget, title, position, allowed_areas):
-        dock = QtGui.QDockWidget(title, self)
+        dock = QtWidgets.QDockWidget(title, self)
         dock.setAllowedAreas(allowed_areas)
         dock.setWidget(widget)
         self.addDockWidget(position, dock)
