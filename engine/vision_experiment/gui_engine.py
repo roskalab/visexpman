@@ -187,7 +187,6 @@ class ExperimentHandler(object):
             self.printc('Custom command handler')
             self.machine_config.command_handler(self, parameter_name, self.guidata.read(parameter_name))
             
-            
     def _send_valve_command(self, cmd):
         import serial
         valve_serial_port=serial.Serial(self.machine_config.VALVE_PORT, 115200, timeout=1)
@@ -1129,6 +1128,10 @@ class ExperimentHandler(object):
 #                self.to_gui.put({'update_camera_status':'camera recording'})
         elif trigger_name=='stim data ready':
             self.save_experiment_files()
+            if hasattr(self.machine_config, 'post_stim_command_handler'):
+                self.to_gui.put({'update_status':'busy'})
+                self.machine_config.post_stim_command_handler(self)
+                self.to_gui.put({'update_status':'idle'})
             self.printc('Experiment ready')
             if self.machine_config.PLATFORM=='ao_cortical':
                 msg='Go to Matlab window and make sure that "RECORDING FINISHED" message has shown up.'
