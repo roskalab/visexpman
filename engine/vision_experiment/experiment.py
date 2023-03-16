@@ -322,7 +322,10 @@ def read_stimulus_parameters(stimname, filename,config):
     introspect.import_code(source_code,'experiment_module', add_to_sys_modules=1)
     em=__import__('experiment_module')
     ec=getattr(em,stimname)(config,create_runnable=False)
-    return introspect.cap_attributes2dict(ec)
+    dd=introspect.cap_attributes2dict(ec)
+    dd['base classes']=read_stimulus_base_classes(stimname, filename, config)
+    
+    return dd
     
 def stimulus_parameters_hash(pars):
     '''

@@ -873,21 +873,27 @@ class MainUI(gui.VisexpmanMainWindow):
                 protocols=['Pulse train','Pulse train steps']
                 protocols.extend([os.path.basename(f) for f in fileop.listdir(self.machine_config.PROTOCOL_PATH) if os.path.splitext(f)[1]=='.mat'])
                 pars=[
-                                {'name': 'Displayed signal length', 'type': 'float', 'value': 20.0,  'suffix': 's'},
+                                
                                 {'name': 'Sample Rate', 'type': 'float', 'value': 10000,  'suffix': 'Hz', 'decimals':6},
                                 {'name': 'Clamp Mode', 'type': 'list', 'value': 'Current Clamp',  'values': ['Voltage Clamp', 'Current Clamp']},
-                                
-#                                {'name': 'Clamp Voltage', 'type': 'float', 'value': 0.0,  'suffix': ' mV'},
-#                                {'name': 'Clamp Current', 'type': 'float', 'value': 0.0,  'suffix': ' pA'},
+                                #{'name': 'Clamp Current', 'type': 'float', 'value': 0.0,  'suffix': ' pA'},
                                 {'name': 'Current Gain', 'type': 'float', 'value': 0.5,  'suffix': 'V/nA'},
                                 {'name': 'Voltage Gain', 'type': 'float', 'value': 100.0, 'suffix': 'mV/mV'}, 
 #                                {'name': 'Current Command Sensitivity', 'type': 'float', 'value': 400,  'suffix': 'pA/V'},
 #                                {'name': 'Voltage Command Sensitivity', 'type': 'float', 'value': 20.0, 'suffix': 'mV/V'}, 
-                                {'name': 'Show raw voltage', 'type': 'bool', 'value': False},
-                                {'name': 'Y axis autoscale', 'type': 'bool', 'value': True},
-                                {'name': 'Y min', 'type': 'float', 'value': 0},
-                                {'name': 'Y max', 'type': 'float', 'value': 10},
-                                {'name': 'Stimulus', 'type': 'group', 'expanded' : True, 'children': [
+                                
+                                {'name': 'Visualization', 'type': 'group', 'expanded' : False, 'children': [
+                                    {'name': 'Displayed signal length', 'type': 'float', 'value': 20.0,  'suffix': 's'},
+                                    {'name': 'Show raw voltage', 'type': 'bool', 'value': False},
+                                    {'name': 'Show Command Signal', 'type': 'bool', 'value': True},
+                                    {'name': 'Y axis autoscale', 'type': 'bool', 'value': True},
+                                    {'name': 'Y min', 'type': 'float', 'value': 0},
+                                    {'name': 'Y max', 'type': 'float', 'value': 10},
+                                ]}, 
+                                {'name': 'LED Stimulus', 'type': 'group', 'expanded' : True, 'children': [
+                                    {'name': 'Clamp Voltage', 'type': 'float', 'value': 0.0,  'suffix': ' mV'},
+                                ]}, 
+                                {'name': 'Pulse Generator', 'type': 'group', 'expanded' : True, 'children': [
                                     {'name': 'Enable', 'type': 'bool', 'value': False},
                                     {'name': 'Protocol', 'type': 'list', 'value': '',  'values': protocols},
                                     {'name': 'Amplitudes', 'type': 'str', 'value': ''},

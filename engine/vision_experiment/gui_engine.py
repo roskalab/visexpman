@@ -243,6 +243,7 @@ class ExperimentHandler(object):
         source_code_type='stimulus_source_code' if len(experiment.parse_stimulation_file(filename)[classname])==0 else 'experiment_config_source_code'
         experiment_parameters[source_code_type]=stimulus_source_code
         experiment_parameters['stimclass']=classname
+        experiment_parameters['led_stimulus']='LEDStimulus' in self.stimulus_config['base classes'] and not self.guidata.read('Enable')
         if 'ELPHYS_STIMULUS' in self.stimulus_config and self.stimulus_config['ELPHYS_STIMULUS']:
             experiment_duration = experiment.get_experiment_duration(classname, self.machine_config, source = stimulus_source_code)
         elif self.guidata.read('Enable'):
@@ -284,6 +285,7 @@ class ExperimentHandler(object):
                 fsample=self.guidata.read('Sample Rate') #self.machine_config.SYNC_RECORDER_SAMPLE_RATE
                 scale=self.guidata.read('Current Command Sensitivity') if mode=='Current Clamp' else self.guidata.read('Voltage Command Sensitivity')
                 if self.guidata.read('Protocol')=='Pulse train' or self.guidata.read('Protocol')=='Pulse train steps':
+                    #Generate elphys stimulus based on Settings
                     if self.guidata.read('Protocol')=='Pulse train steps':
                         nsteps=int((self.guidata.read('Amplitude Max')-self.guidata.read('Amplitude Min'))/self.guidata.read('Amplitude Step size')+1)
                         amplitudes=numpy.linspace(self.guidata.read('Amplitude Min'),self.guidata.read('Amplitude Max'),nsteps)
@@ -302,6 +304,7 @@ class ExperimentHandler(object):
                     experiment_parameters['elphys_amplitudes_volt']=amplitudes
                     experiment_parameters['elphys_waveform']=numpy.concatenate(epochs)
                 elif 'ELPHYS_STIMULUS' not in self.stimulus_config or not self.stimulus_config['ELPHYS_STIMULUS']:
+                    #Load elphys stimulus from mat file
                     import scipy.io
                     pfn=os.path.join(self.machine_config.PROTOCOL_PATH, self.guidata.read('Protocol'))
                     wf_file_content=scipy.io.loadmat(pfn)
@@ -602,19 +605,27 @@ class ExperimentHandler(object):
                     self._stop_sync_recorder()
                     return
                 
-            elif self.machine_config.PLATFORM not in ['erg'] and 'elphys_waveform' not in experiment_parameters and 'ELPHYS_STIMULUS' not in self.stimulus_config:
+            elif self.machine_config.PLATFORM not in ['erg'] and 'elphys_waveform' not in experiment_parameters and 'ELPHYS_STIMULUS' not in self.stimulus_config and not experiment_parameters['led_stimulus']:
                 self.send({'function': 'start_stimulus','args':[experiment_parameters]},'stim')
         self.current_experiment_parameters=experiment_parameters
-        if 'elphys_waveform' in experiment_parameters:
+        if 'elphys_waveform' in experiment_parameters and not self.current_experiment_parameters['led_stimulus']:#if self.guidata.read('Enable'):
             self.printc('Start elphys pulses')
             self.ao, d=daq.set_waveform_start(self.machine_config.ELPHYS_COMMAND_CHANNEL,experiment_parameters['elphys_waveform'][None],self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
             self.ao_duration=experiment_parameters['elphys_waveform'].shape[0]/self.machine_config.SYNC_RECORDER_SAMPLE_RATE
             experiment_parameters['duration']=self.ao_duration
             experiment_parameters['stimclass']='Electrical pulses'
             self.ao_termination_time=time.time()+self.ao_duration+5
-        elif 'ELPHYS_STIMULUS' in self.stimulus_config and self.stimulus_config['ELPHYS_STIMULUS']:
+        elif self.current_experiment_parameters['led_stimulus']:
             self.printc('Start LED stimulus')
-            self.ao, d=daq.set_waveform_start(self.machine_config.LED_COMMAND_CHANNEL,self.stimulus_config['WAVEFORM'],self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
+            mode=self.guidata.read('Clamp Mode')
+            if mode=='Voltage Clamp':
+                wf=numpy.zeros((2, self.stimulus_config['WAVEFORM'].shape[1]))
+                wf[1]=self.stimulus_config['WAVEFORM']
+                wf[0]=self.guidata.read('Clamp Voltage')/self.guidata.read('Voltage Command Sensitivity')    
+                self.wf=wf
+                self.ao, d=daq.set_waveform_start(self.machine_config.ELPHYS_COMMAND_CHANNEL+':1',wf,self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
+            else:
+                self.ao, d=daq.set_waveform_start(self.machine_config.LED_COMMAND_CHANNEL,self.stimulus_config['WAVEFORM'],self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
             self.ao_duration=self.stimulus_config['WAVEFORM'].shape[1]/self.machine_config.SYNC_RECORDER_SAMPLE_RATE
             experiment_parameters['duration']=self.ao_duration
             experiment_parameters['led waveform']=self.stimulus_config['WAVEFORM']
@@ -866,7 +877,7 @@ class ExperimentHandler(object):
             if self.santiago_setup:
                 #Export timing to csv file
                 self._timing2csv(filename)
-            if self.machine_config.PLATFORM=='elphys' and not aborted and not self.guidata.read('Enable') and not self.guidata.read('Enable Psychotoolbox') and 'ELPHYS_STIMULUS' not in self.stimulus_config:
+            if self.machine_config.PLATFORM=='elphys' and not aborted and not self.guidata.read('Enable') and not self.guidata.read('Enable Psychotoolbox') and 'ELPHYS_STIMULUS' not in self.stimulus_config and not self.current_experiment_parameters['led_stimulus']:
                 self.hh=experiment_data.CaImagingData(outfile)
                 self.hh.load()
                 self.to_gui.put({'plot_title': os.path.dirname(outfile)+'<br>'+os.path.basename(outfile)})
@@ -2573,8 +2584,7 @@ class ElphysEngine():
             labels={"left": unit,  "bottom": "time [s]"}
             self.yrange=[self.guidata.read('Y min'),  self.guidata.read('Y max')] if not self.guidata.read('Y axis autoscale') else None
             thr=2.5
-            
-            if 'elphys_waveform' not in self.current_experiment_parameters and 'ELPHYS_STIMULUS' in self.stimulus_config and self.stimulus_config['ELPHYS_STIMULUS']:
+            if 'elphys_waveform' not in self.current_experiment_parameters and self.current_experiment_parameters['led_stimulus']:
                 #Visualize LED flashes
                 sig=sync[index:, self.machine_config.TSTIM_LASER_SYNC_INDEX]
                 thr=self.stimulus_config['AMPLITUDE']/2
