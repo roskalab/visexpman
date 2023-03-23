@@ -1,7 +1,64 @@
-from pylablib.devices import Thorlabs #pip install pylablib
+from pylablib.devices import Thorlabs
 import logging
 from visexpman import daq
 import numpy
+
+class WavePlate(object):
+    def __init__(self, waveplate_id, logfile, config, interpol):#Handles single waveplate, identification: RR0, GR1 etc
+        self.waveplate_id = waveplate_id
+        self.logfile = logfile
+        self.config = config
+        self.interpol = interpol
+        self.current_pos = 0.0
+        self.param_name = self.waveplate_id+'_servo_ID'
+        
+        logging.basicConfig(format='%(asctime)s %(levelname)s\t%(message)s', level=logging.INFO, handlers=[logging.FileHandler(self.logfile), logging.StreamHandler()])
+        devicelist = Thorlabs.list_kinesis_devices()
+        logging.info(devicelist)
+        
+        if len([device for device in devicelist if device[0] == self.config['SERVOCONF'][self.param_name]]):
+            #servo motor ID is in the list of connected devices
+            motor = Thorlabs.KinesisMotor(self.config['SERVOCONF'][self.param_name], scale='stage')
+            logging.info(motor.get_status())
+            
+            if motor.is_homed() == False:
+                logging.info('Homing ' + self.waveplate_id + '...')
+                motor.home()
+                motor.wait_for_home()
+                logging.info('Homing ' + self.waveplate_id + ' done')
+                                
+
+            
+            logging.info('Positioning ' + self.waveplate_id + ' to 0 deg')
+            motor_des_pos = self.interpol(0)
+            motor.move_to(motor_des_pos)
+            motor.wait_move()   
+            motor.close()
+            logging.info('Positioning done')
+        else:
+            logging.error('Motor ' + self.waveplate_id + ' is not connected or its ID need to be changed in the config file!')
+            #getattr(self.logger, 'filename') 
+            
+    def set_position(self, des_pos):
+        logging.info('Changing ' + self.waveplate_id + ' waveplate position...')
+        motor = Thorlabs.KinesisMotor(self.config['SERVOCONF'][self.param_name], scale='stage')
+            
+        if motor.is_homed() == False:
+            logging.error('Motor ' + self.waveplate_id + ' is not homed!')
+            motor.close()
+            return ['SET_SERVO_ERROR']
+        else:       
+            motor_des_pos = self.interpol(des_pos/100.0)
+            logging.info('Positioning ' + self.waveplate_id + ' to: ' + str(des_pos) + '%, ' +  str(motor_des_pos) + ' deg')
+            motor.move_to(motor_des_pos)
+            motor.wait_move()
+            logging.info(self.waveplate_id + ' position: ' + str(motor.get_position()) + ' deg')
+            motor.close()
+            self.current_pos = des_pos
+            return ['SET_SERVO_DONE',  self.current_pos]
+    
+    def get_position(self):
+        return self.current_pos      
 
 
 
@@ -45,75 +102,4 @@ def read_config(logfile, config_file):
     return config, GR0_interpolation, RR0_interpolation
 
 
-
-def init_devices(logfile, config, interpol0, interpol1):
-    logging.basicConfig(format='%(asctime)s %(levelname)s\t%(message)s', level=logging.INFO, handlers=[logging.FileHandler(logfile), logging.StreamHandler()])
-    devicelist = Thorlabs.list_kinesis_devices()
-    logging.info(devicelist)
-    daq.set_digital_line(config['SHUTTERCONF']['GS0_channel'],  0)
-    daq.set_digital_line(config['SHUTTERCONF']['RS0_channel'],  0)
-    
-    if len([device for device in devicelist if device[0] == config['SERVOCONF']['GR0_servo_ID']]) and len([device for device in devicelist if device[0] == config['SERVOCONF']['RR0_servo_ID']]):
-        #both motors are connected (their IDs exist in the device list)
-        motor0 = Thorlabs.KinesisMotor(config['SERVOCONF']['GR0_servo_ID'], scale='stage')
-        motor1 = Thorlabs.KinesisMotor(config['SERVOCONF']['RR0_servo_ID'], scale='stage')
-        
-        logging.info(motor0.get_status())
-        logging.info(motor1.get_status())
-        
-        if motor0.is_homed() == False or motor1.is_homed() == False:
-            logging.info('Homing GR0 and/or RR0...')
-                
-            if motor0.is_homed() == False:
-                motor0.home()
-                motor0.wait_for_home()
-
-            if motor1.is_homed() == False:
-                motor1.home()
-                motor1.wait_for_home()
-            logging.info('Homing GR0 and/or RR0 done')
-                            
-        motor0_des_pos = interpol0(0)
-        motor1_des_pos = interpol1(0)
-        
-        logging.info('Positioning GR0 and RR0 to 0 deg...')
-        motor0.move_to(motor0_des_pos)
-        motor1.move_to(motor1_des_pos)
-        motor0.wait_move()
-        motor1.wait_move()    
-        motor0.close()
-        motor1.close()
-        logging.info('Positioning done')
-        return [0.0, 0.0]
-    else:
-        logging.error('Motors are not connected or their IDs need to be changed in the config file!')
-        exit(0)
-        
-    
-def set_servo(logfile, config, interpol0, interpol1, des_pos, current_pos):
-    logging.basicConfig(format='%(asctime)s %(levelname)s\t%(message)s', level=logging.INFO, handlers=[logging.FileHandler(logfile), logging.StreamHandler()])
-    logging.info('Changing waveplate position...')
-    motor0 = Thorlabs.KinesisMotor(config['SERVOCONF']['GR0_servo_ID'], scale='stage')
-    motor1 = Thorlabs.KinesisMotor(config['SERVOCONF']['RR0_servo_ID'], scale='stage')
-        
-    if motor0.is_homed() == False or motor1.is_homed() == False:
-        logging.error('Motors are not homed!')
-        motor0.close()
-        motor1.close()
-        return ['SET_SERVO_ERROR']
-    else:       
-        motor0_des_pos = interpol0(des_pos[0]/100.0)
-        motor1_des_pos = interpol1(des_pos[1]/100.0)
-        logging.info('Positioning GR0 to: ' + str(des_pos[0]) + '%, ' +  str(motor0_des_pos) + ' deg')
-        logging.info('Positioning RR0 to: ' + str(des_pos[1]) + '%, ' +  str(motor1_des_pos) + ' deg')
-        motor0.move_to(motor0_des_pos)
-        motor0.wait_move()
-        motor1.move_to(motor1_des_pos)
-        motor1.wait_move()
-        logging.info('GR0 position: ' + str(motor0.get_position()) + ' deg')
-        logging.info('RR0 position: ' + str(motor1.get_position()) + ' deg')
-        motor0.close()
-        motor1.close()
-        current_pos[0] = des_pos[0]
-        current_pos[1] = des_pos[1]
-        return ['SET_SERVO_DONE',  des_pos[0], des_pos[1]]         
+  
