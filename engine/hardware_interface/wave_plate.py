@@ -8,9 +8,9 @@ class WavePlate(object):
         self.waveplate_id = waveplate_id
         self.logfile = logfile
         self.config = config
-        self.interpol = interpol
         self.current_pos = 0.0
         self.param_name = self.waveplate_id+'_servo_ID'
+        self.interpol = interpol
         
         logging.basicConfig(format='%(asctime)s %(levelname)s\t%(message)s', level=logging.INFO, handlers=[logging.FileHandler(self.logfile), logging.StreamHandler()])
         devicelist = Thorlabs.list_kinesis_devices()
@@ -28,9 +28,12 @@ class WavePlate(object):
                 logging.info('Homing ' + self.waveplate_id + ' done')
                                 
 
-            
-            logging.info('Positioning ' + self.waveplate_id + ' to 0 deg')
-            motor_des_pos = self.interpol(0)
+            if self.interpol is None:
+                motor_des_pos = 0
+                logging.info('Positioning ' + self.waveplate_id + ' to 0 deg')
+            else:
+                motor_des_pos = self.interpol(0)
+                logging.info('Positioning ' + self.waveplate_id + ' to 0%')
             motor.move_to(motor_des_pos)
             motor.wait_move()   
             motor.close()
@@ -47,8 +50,11 @@ class WavePlate(object):
             logging.error('Motor ' + self.waveplate_id + ' is not homed!')
             motor.close()
             return ['SET_SERVO_ERROR']
-        else:       
-            motor_des_pos = self.interpol(des_pos/100.0)
+        else:
+            if self.interpol is None:
+                motor_des_pos = des_pos
+            else:   
+                motor_des_pos = self.interpol(des_pos/100.0)
             logging.info('Positioning ' + self.waveplate_id + ' to: ' + str(des_pos) + '%, ' +  str(motor_des_pos) + ' deg')
             motor.move_to(motor_des_pos)
             motor.wait_move()
@@ -73,32 +79,28 @@ def read_config(logfile, config_file):
     config = configparser.ConfigParser()
     config.read(config_file)
     
-    if 'SERVOCONF' in config and 'SHUTTERCONF' in config and 'NETWORKCONF' in config:
-        logging.info(config['SERVOCONF']['GR0_servo_ID'])
-        logging.info(config['SERVOCONF']['RR0_servo_ID'])
-        logging.info(config['SERVOCONF']['GR0_angle_deg'])
-        logging.info(config['SERVOCONF']['GR0_power_mW'])
-        logging.info(config['SERVOCONF']['RR0_angle_deg'])
-        logging.info(config['SERVOCONF']['RR0_power_mW'])
-        logging.info(config['SHUTTERCONF']['GS0_channel'])
-        logging.info(config['SHUTTERCONF']['RS0_channel'])
-        logging.info(config['NETWORKCONF']['ip_address0'])
-        logging.info(config['NETWORKCONF']['ip_address1'])
-        logging.info(config['NETWORKCONF']['port0'])
-        logging.info(config['NETWORKCONF']['port1'])
-        
+    if config.has_option('SERVOCONF', 'GR0_angle_deg') and config.has_option('SERVOCONF', 'GR0_power_mW'):
         GR0_angle_deg = [float(i) for i in config['SERVOCONF']['GR0_angle_deg'].split(',')]
         GR0_power_mW = [float(i) for i in config['SERVOCONF']['GR0_power_mW'].split(',')]
         GR0_power = (GR0_power_mW - numpy.min(GR0_power_mW)) / (numpy.max(GR0_power_mW) - numpy.min(GR0_power_mW)) #normalization
+        GR0_interpolation = interpolate.interp1d(GR0_power, GR0_angle_deg)
+    else:
+        GR0_interpolation = None
+        logging.info('GR0 calibration is missing!')
+        
+    if config.has_option('SERVOCONF', 'RR0_angle_deg') and config.has_option('SERVOCONF', 'RR0_power_mW'):
         RR0_angle_deg = [float(i) for i in config['SERVOCONF']['RR0_angle_deg'].split(',')]
         RR0_power_mW = [float(i) for i in config['SERVOCONF']['RR0_power_mW'].split(',')]
         RR0_power = (RR0_power_mW - numpy.min(RR0_power_mW)) / (numpy.max(RR0_power_mW) - numpy.min(RR0_power_mW)) #normalization
+        RR0_interpolation = interpolate.interp1d(RR0_power, RR0_angle_deg)
     else:
-        logging.error('Config file format error')
-        exit(1)
+        RR0_interpolation = None
+        logging.info('RR0 calibration is missing!')
+    
+
         
-    GR0_interpolation = interpolate.interp1d(GR0_power, GR0_angle_deg)
-    RR0_interpolation = interpolate.interp1d(RR0_power, RR0_angle_deg)
+    
+   
     return config, GR0_interpolation, RR0_interpolation
 
 

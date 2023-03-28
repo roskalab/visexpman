@@ -11,24 +11,35 @@ class PMTTripping(object):
         devlist = self.rm.list_resources()
         logging.info(devlist)
         if devlist:
-            self.inst = self.rm.open_resource(devlist[0])
-            logging.info(self.inst.query("*IDN?"))
+            try:
+                self.inst = self.rm.open_resource(devlist[0])
+                logging.info(self.inst.query("*IDN?"))
+            except pyvisa.VisaIOError:
+                logging.error('VisaIOError exception')
         else:
             logging.error('No PMT device found!')
      
     def has_tripped(self):
         devlist = self.rm.list_resources()
         if devlist:
-            self.inst = self.rm.open_resource(devlist[0])
-            if self.inst.query("SENSe:CURRent:DC:PROTection:TRIPped?") == "1":
-                return True
-            else:
+            try:
+                self.inst = self.rm.open_resource(devlist[0])
+                return self.inst.query("SENSe:CURRent:DC:PROTection:TRIPped?") == "1"
+            except pyvisa.VisaIOError:
+                logging.error('VisaIOError exception')
                 return False
+                
         else:
             logging.error('No PMT device found!')
             return False
         
     def handle_tripping(self):
-        self.inst.query("SENSe:CURRent:DC:PROTection:CLEar") #clear tripping signal
-        logging.info("PMT tripping signal cleared")
+        logging.info("PMT tripping signal clearing")
         utils.sendmail(self.notif_email, 'PMT tripping', 'PMT tripping has been detected')
+        try:
+            self.inst.query("SENSe:CURRent:DC:PROTection:CLEar") #clear tripping signal
+           
+        except pyvisa.VisaIOError:
+            logging.error("VisaIOError exception")
+             
+        
