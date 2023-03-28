@@ -11,7 +11,7 @@ try:
     import PyDAQmx
     import PyDAQmx.DAQmxConstants as DAQmxConstants
     import PyDAQmx.DAQmxTypes as DAQmxTypes
-    from visexpman.engine.hardware_interface import scanner_control,camera, stage_control, wave_plate
+    from visexpman.engine.hardware_interface import scanner_control,camera, stage_control, wave_plate, pmt_tripping
     from visexpman.engine.vision_experiment import gui_engine, main_ui,experiment_data
 except:
     print('Import errors')
@@ -333,6 +333,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
 
     def _init_hardware(self):
         self.daq_logfile=self.logger.filename.replace('2p', '2p_daq')
+        self.pmttripping_logfile=self.logger.filename.replace('2p', '2p_pmttripping')
+        self.pmt = pmt_tripping.PMTTripping(self.pmttripping_logfile, 'zoltan@raics.hu')
         self.start_aio()
         self.cam_logfile=self.logger.filename.replace('2p', '2p_cam')
         self.camera=camera.ThorlabsCameraProcess(self.machine_config.THORLABS_CAMERA_DLL,
@@ -346,6 +348,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.redlaser = wave_plate.WavePlate('RR1', self.redlaser_logfile, servoconfig, self.machine_config.RR1_INTERPOLATION)  
         self.greenlaser_logfile=self.logger.filename.replace('2p', '2p_greenlaser')
         self.greenlaser = wave_plate.WavePlate('GR1', self.greenlaser_logfile, servoconfig, self.machine_config.GR1_INTERPOLATION)
+        self.pmttripping_logfile=self.logger.filename.replace('2p', '2p_pmttripping')
+        self.pmt = pmt_tripping.PMTTripping(self.pmttripping_logfile, 'zoltan@raics.hu')
         
         
         if not self.machine_config.STAGE_IN_SCANNER_PROCESS:
@@ -384,6 +388,9 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         import psutil
         p = psutil.Process(self.aio.pid)
         p.nice(psutil.REALTIME_PRIORITY_CLASS)
+        
+        if self.pmt.has_tripped() == True:
+            self.pmt.handle_tripping()
         
     def restart_aio(self):
         self.printc('Restart daq process')

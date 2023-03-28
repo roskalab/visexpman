@@ -724,10 +724,7 @@ def hdf52object(h, vn, default_value = None):
         return default_value
 
 def object2npy(o,fn):
-    if isinstance(o,str):
-        numpy.save(o,object2array(fn))
-    else:
-        numpy.save(fn,object2array(o))
+    numpy.save(fn,object2array(o))
     
 def npy2object(fn):
     return array2object(numpy.load(fn))
@@ -1176,6 +1173,20 @@ def list_swap(l, i1, i2):
     return l
     
 def sendmail(to, subject, txt):
+    import smtplib
+    from email.message import EmailMessage
+    msg = EmailMessage()
+    msg.set_content(txt)
+    msg['Subject'] = subject
+    msg['From'] = "twophoton.notification@gmail.com"
+    msg['To'] = to
+
+    server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+    server.login("twophoton.notification@gmail.com", "yfapunvmdezuefaq")
+    server.send_message(msg)
+    server.quit()
+    
+def sendmail2(to, subject, txt):
     import subprocess
     message = 'Subject:{0}\n\n{1}\n'.format(subject, txt)
     fn='/tmp/email.txt'
