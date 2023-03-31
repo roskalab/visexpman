@@ -274,26 +274,26 @@ class SimpleGuiWindow(Qt.QMainWindow):
         dock.setFeatures(dock.DockWidgetMovable | dock.DockWidgetClosable |dock.DockWidgetFloatable)
         
     def ask4confirmation(self, action2confirm):
-        reply = QtGui.QMessageBox.question(self, 'Confirm:', action2confirm, QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
-        if reply == QtGui.QMessageBox.No:
+        reply = QtWidgets.QMessageBox.question(self, 'Confirm:', action2confirm, QtWidgets.QMessageBox.Yes, QtWidgets.QMessageBox.No)
+        if reply == QtWidgets.QMessageBox.No:
             return False
         else:
             return True
             
     def ask4filename(self,title, directory, filter):
-        filename = QtGui.QFileDialog.getOpenFileName(self, title, directory, filter)[0]
+        filename = QtWidgets.QFileDialog.getOpenFileName(self, title, directory, filter)[0]
         if os.name=='nt':
             filename=filename.replace('/','\\')
         return filename
         
     def ask4filenames(self,title, directory, filter):
-        filenames = QtGui.QFileDialog.getOpenFileNames(self, title, directory, filter)[0]
+        filenames = QtWidgets.QFileDialog.getOpenFileNames(self, title, directory, filter)[0]
         if os.name=='nt':
             filenames=[filename.replace('/','\\') for filename in filenames]
         return filenames
         
     def ask4foldername(self,title, directory):
-        foldername = QtGui.QFileDialog.getExistingDirectory(self, title, directory)
+        foldername = QtWidgets.QFileDialog.getExistingDirectory(self, title, directory)
         if os.name=='nt':
             foldername=foldername.replace('/','\\')
         return foldername
@@ -302,7 +302,7 @@ class SimpleGuiWindow(Qt.QMainWindow):
         self.notify(self, title, message)
         
     def notify(self, title, message):
-        QtGui.QMessageBox.question(self, title, message, QtGui.QMessageBox.Ok)
+        QtWidgets.QMessageBox.question(self, title, message, QtWidgets.QMessageBox.Ok)
         
     def plotw(self, x, y):
         '''
@@ -518,7 +518,20 @@ class Plot(pyqtgraph.GraphicsLayoutWidget):
         if len(plotparams)>0 and any([True for pp in plotparams if 'name' in pp.keys()]):
             if self.plot.legend != None:
                 self.plot.legend.removeItem(self.plot.legend)
-            self.plot.addLegend()
+            # Checking if parameters exist:
+            if plotparams[0]['labelTextColor'] != None:
+                labelTextColor=pyqtgraph.mkColor(plotparams[0]['labelTextColor'])
+            else: 
+                labelTextColor=pyqtgraph.mkColor('r')
+            if plotparams[0]['offset'] != None:
+                offset=plotparams[0]['offset']
+            else: 
+                offset=(30, 30)
+            if plotparams[0]['brush'] != None:
+                brush=pyqtgraph.mkBrush(plotparams[0]['brush'])
+            else: 
+                brush=pyqtgraph.mkBrush(0)
+            self.plot.addLegend(offset=offset, labelTextColor=labelTextColor, brush=brush)
             self.plot.legend.setScale(0.7)
         for i in range(ncurves):
             if len(plotparams)>0:
@@ -1099,11 +1112,11 @@ class FileInput(Qt.QMainWindow):
             
     def popup(self):
         if self.mode=='file':
-            filename = str(QtGui.QFileDialog.getOpenFileName(self, self.title, self.root, self.filter)[0])
+            filename = str(QtWidgets.QFileDialog.getOpenFileName(self, self.title, self.root, self.filter)[0])
         elif self.mode=='files':
-            filename = map(str,QtGui.QFileDialog.getOpenFileNames(self, self.title, self.root, self.filter))
+            filename = map(str,QtWidgets.QFileDialog.getOpenFileNames(self, self.title, self.root, self.filter))
         elif self.mode=='folder':
-            filename= str(QtGui.QFileDialog.getExistingDirectory(self, self.title, self.root))
+            filename= str(QtWidgets.QFileDialog.getExistingDirectory(self, self.title, self.root))
         elif self.mode=='text':
             text, ok = QtGui.QInputDialog.getText(self, self.title, '', QtGui.QLineEdit.Normal, self.default)
             self.text=str(text)

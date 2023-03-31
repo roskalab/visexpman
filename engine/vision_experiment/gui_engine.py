@@ -4,7 +4,7 @@ import copy
 import sys
 try:
     import Queue
-    import cPickle as pickle
+    import cPickle as pickle                        
 except ImportError:
     import queue as Queue
     import pickle
@@ -3091,7 +3091,19 @@ class TestMainUIEngineIF(unittest.TestCase):
         if hasattr(self, 'working_folder') and os.path.exists(self.working_folder):
             shutil.rmtree(self.working_folder)
         
-
+def LoadEstimator():
+    import os
+    import psutil
+    UPDATE_DELAY = 2
+    cpu_avg_load = [x / psutil.cpu_count() * 100 for x in psutil.getloadavg()][2]
+    ram_avg_load = psutil.virtual_memory()[2]
+    network_load_1 = psutil.net_io_counters()
+    time.sleep(UPDATE_DELAY)
+    network_load_2 = psutil.net_io_counters()
+    network_sent_avg_load = (network_load_2.bytes_sent - network_load_1.bytes_sent)/1024/UPDATE_DELAY   #Avarage upload speeed in the last 2 second in kbyte/sec
+    network_recv_avg_load = (network_load_2.bytes_recv - network_load_1.bytes_recv)/1024/UPDATE_DELAY   #Avarage download speeed in the last 2 second in kbyte/sec
+    avg_load = {"cpu" : cpu_avg_load, "ram" : ram_avg_load, "net_sent" : network_sent_avg_load , "net_recv" : network_recv_avg_load }
+    return avg_load
 
 if __name__=='__main__':
     unittest.main()
