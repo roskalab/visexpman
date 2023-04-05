@@ -19,25 +19,30 @@ class WavePlate(object):
         if len([device for device in devicelist if device[0] == self.config['SERVOCONF'][self.param_name]]):
             #servo motor ID is in the list of connected devices
             motor = Thorlabs.KinesisMotor(self.config['SERVOCONF'][self.param_name], scale='stage')
-            logging.info(motor.get_status())
+            status = motor.get_status()
+            logging.info(status)
             
-            if motor.is_homed() == False:
-                logging.info('Homing ' + self.waveplate_id + '...')
-                motor.home()
-                motor.wait_for_home()
-                logging.info('Homing ' + self.waveplate_id + ' done')
-                                
-
-            if self.interpol is None:
-                motor_des_pos = 0
-                logging.info('Positioning ' + self.waveplate_id + ' to 0 deg')
+            if 'enabled' not in status:
+                logging.error('Motor ' + self.waveplate_id + ' is disabled! Enable it before using this software!')
+                
             else:
-                motor_des_pos = self.interpol(0)
-                logging.info('Positioning ' + self.waveplate_id + ' to 0%')
-            motor.move_to(motor_des_pos)
-            motor.wait_move()   
+                if motor.is_homed() == False:
+                    logging.info('Homing ' + self.waveplate_id + '...')
+                    motor.home()
+                    motor.wait_for_home()
+                    logging.info('Homing ' + self.waveplate_id + ' done')
+                                    
+
+                if self.interpol is None:
+                    motor_des_pos = 0
+                    logging.info('Positioning ' + self.waveplate_id + ' to 0 deg')
+                else:
+                    motor_des_pos = self.interpol(0)
+                    logging.info('Positioning ' + self.waveplate_id + ' to 0%')
+                motor.move_to(motor_des_pos)
+                motor.wait_move()   
+                logging.info('Positioning done')
             motor.close()
-            logging.info('Positioning done')
         else:
             logging.error('Motor ' + self.waveplate_id + ' is not connected or its ID need to be changed in the config file!')
             #getattr(self.logger, 'filename') 
@@ -96,10 +101,6 @@ def read_config(logfile, config_file):
     else:
         RR0_interpolation = None
         logging.info('RR0 calibration is missing!')
-    
-
-        
-    
    
     return config, GR0_interpolation, RR0_interpolation
 
