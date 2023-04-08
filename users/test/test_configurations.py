@@ -545,12 +545,12 @@ class GUITestConfigPix(GUITestConfig):
 class AppInitTest4Config(GUITestConfig):
     def _set_user_parameters(self):
         GUITestConfig._set_user_parameters(self)
-        self.FREE_SPACE_WARNING_THRESHOLD = 2**40
+        self.FREE_SPACE_WARNING_THRESHOLD = 1   #1 GB
         
 class AppInitTest5Config(GUITestConfig):
     def _set_user_parameters(self):
         GUITestConfig._set_user_parameters(self)
-        self.FREE_SPACE_ERROR_THRESHOLD = 2**40
+        self.FREE_SPACE_ERROR_THRESHOLD = 0.5 #512 MB
         
 class ULCornerTestConfig(GUITestConfig):
     def _set_user_parameters(self):

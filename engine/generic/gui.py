@@ -123,7 +123,7 @@ class VisexpmanMainWindow(Qt.QMainWindow):
         loglevels = ['warning', 'error']
         loglevel = [l for l in loglevels if l in text.lower()]
         if 'error' in text.lower() and popup_error:
-            QtGui.QMessageBox.question(self, 'Error', text, QtGui.QMessageBox.Ok)
+            QtWidgets.QMessageBox.question(self, 'Error', text, QtWidgets.QMessageBox.Ok)
         if len(loglevel)>0:
             loglevel = loglevel[0]
             getattr(self.logger, loglevel)(text.replace('{0}: '.format(loglevel.upper()),''), self.source_name)
@@ -1121,7 +1121,7 @@ class FileInput(Qt.QMainWindow):
             text, ok = QtGui.QInputDialog.getText(self, self.title, '', QtGui.QLineEdit.Normal, self.default)
             self.text=str(text)
         elif self.mode=='message':
-            QtGui.QMessageBox.question(self, self.title, self.message, QtGui.QMessageBox.Ok)
+            QtWidgets.QMessageBox.question(self, self.title, self.message, QtWidgets.QMessageBox.Ok)
         if self.mode not in ['text','message']:
             if os.name=='nt':
                 if isinstance(filename,list):

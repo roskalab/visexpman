@@ -80,8 +80,8 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         USER_INTERFACE_NAMES = {'main_ui':'Vision Experiment Manager', '2p': 'Two Photon Imaging', 'stim':'Stimulation', 'analysis': 'Online Analysis', 'cam': 'Camera'}
         
         ############## File/Filesystem related ###############
-        FREE_SPACE_WARNING_THRESHOLD = [2.0**30, [1.0, 2.0**40]]
-        FREE_SPACE_ERROR_THRESHOLD = [2.0**30, [1.0, 2.0**40]]
+        FREE_SPACE_WARNING_THRESHOLD = [100, [0.1, 100]]
+        FREE_SPACE_ERROR_THRESHOLD = [1, [0.1, 100]]
         EXPERIMENT_FILE_FORMAT = ['undefined', ['hdf5', 'mat', 'undefined']]
         ENABLE_USER_FOLDER=True
         FILE_TRIGGER_PATHS=False
