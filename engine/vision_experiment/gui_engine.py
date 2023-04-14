@@ -637,14 +637,16 @@ class ExperimentHandler(object):
         elif self.current_experiment_parameters['led_stimulus']:
             self.printc('Start LED stimulus')
             mode=self.guidata.read('Clamp Mode')
+            wf=numpy.zeros((2, self.stimulus_config['WAVEFORM'].shape[1]))
+            wf[1]=self.stimulus_config['WAVEFORM']
             if mode=='Voltage Clamp':
-                wf=numpy.zeros((2, self.stimulus_config['WAVEFORM'].shape[1]))
-                wf[1]=self.stimulus_config['WAVEFORM']
                 wf[0]=self.guidata.read('Clamp Voltage')/self.guidata.read('Voltage Command Sensitivity')    
-                self.wf=wf
-                self.ao, d=daq.set_waveform_start(self.machine_config.ELPHYS_COMMAND_CHANNEL+':1',wf,self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
-            else:
-                self.ao, d=daq.set_waveform_start(self.machine_config.LED_COMMAND_CHANNEL,self.stimulus_config['WAVEFORM'],self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
+            elif mode=='Current Clamp':
+                wf[0]=self.guidata.read('Clamp Current')/self.guidata.read('Current Command Sensitivity')    
+                
+                
+            self.wf=wf
+            self.ao, d=daq.set_waveform_start(self.machine_config.ELPHYS_COMMAND_CHANNEL+':1',wf,self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
             self.ao_duration=self.stimulus_config['WAVEFORM'].shape[1]/self.machine_config.SYNC_RECORDER_SAMPLE_RATE
             experiment_parameters['duration']=self.ao_duration
             experiment_parameters['led waveform']=self.stimulus_config['WAVEFORM']
@@ -2577,8 +2579,9 @@ class ElphysEngine():
                 command_scale=self.guidata.read("Voltage Command Sensitivity") # ezt is
             elif 'Current' in mode:
                 unit='membrane voltage mV, command: pA'
-                scale=(self.guidata.read('Voltage Gain')/1e3)  #ezt is
-                command_scale=self.guidata.read("Current Command Sensitivity")*1e-3 # ezt is 
+                scale=(self.guidata.read('Voltage Gain')/1e3)
+                command_scale=self.guidata.read("Current Command Sensitivity")
+                #On Atsuki's setup: command_scale=self.guidata.read("Current Command Sensitivity")*1e-3
             fn= self.filename if hasattr(self, 'filename') else str(self.current_experiment_parameters['stimclass'])
             #scale*=1e-3
             self.command_scale=command_scale
@@ -2591,10 +2594,12 @@ class ElphysEngine():
             stim_disp_ena=True#self.guidata.read('Show Stimulus Trace')
             n=1+int(cmd_disp_ena)
             x=n*[t]
+            self.elphysscale=scale
             y=[self.filtered[index:]/scale]
             cc=[[255, 0, 0]]
             if cmd_disp_ena:
-                y.append(sync[index:, self.machine_config.ELPHYSCOMMAND_INDEX]*command_scale)
+                chindex=self.machine_config.ELPHYSCOMMAND_INDEX
+                y.append(sync[index:, chindex]*command_scale)
                 cc.append([0, 255, 0])
 #            y.append(sync[index:,  self.machine_config.TSTIM_SYNC_INDEX])
 #            cc.append([0, 0, 255])

@@ -323,7 +323,8 @@ def read_stimulus_parameters(stimname, filename,config):
     em=__import__('experiment_module')
     ec=getattr(em,stimname)(config,create_runnable=False)
     dd=introspect.cap_attributes2dict(ec)
-    dd['base classes']=read_stimulus_base_classes(stimname, filename, config)
+    if os.path.exists(filename):
+        dd['base classes']=read_stimulus_base_classes(stimname, filename, config)
     
     return dd
     
