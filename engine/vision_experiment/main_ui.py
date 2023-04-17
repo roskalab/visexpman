@@ -892,6 +892,7 @@ class MainUI(gui.VisexpmanMainWindow):
                                 ]}, 
                                 {'name': 'LED Stimulus', 'type': 'group', 'expanded' : True, 'children': [
                                     {'name': 'Clamp Voltage', 'type': 'float', 'value': 0.0,  'suffix': ' mV'},
+                                    {'name': 'Clamp Current', 'type': 'float', 'value': 0.0,  'suffix': ' pA'},
                                 ]}, 
                                 {'name': 'Pulse Generator', 'type': 'group', 'expanded' : True, 'children': [
                                     {'name': 'Enable', 'type': 'bool', 'value': False},

@@ -9,7 +9,10 @@ def save(fn, img):
     '''
     Save numpy array as image, pixel values shall be in 0..1 range. grayscale or rgb numpy arrays supported
     '''
-    Image.fromarray(numpy.cast['uint8'](img*255)).save(fn)
+    if img.max()>1 and img.dtype==numpy.uint8:
+        Image.fromarray(img).save(fn)
+    else:
+        Image.fromarray(numpy.cast['uint8'](img*255)).save(fn)
     
 def torgb(img, channel=1):
     imgout=numpy.zeros((img.shape[0], img.shape[1], 3), dtype=img.dtype)
@@ -46,6 +49,12 @@ def remove_edge_objects(img):
     pixels2remove=numpy.concatenate([numpy.array(numpy.where(labels==ep)).T for ep in edge_pixels])
     img[pixels2remove[:,0],pixels2remove[:,1]]=0
     return img
+    
+def edge_detection(mask):
+    import scipy.ndimage
+    mask=scipy.ndimage.binary_dilation(mask, iterations=1)-mask
+    return
+    
     
 class ImageOpTest(unittest.TestCase):
     def test_01_rotate_folder(self):

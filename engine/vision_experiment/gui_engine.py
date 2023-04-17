@@ -618,14 +618,16 @@ class ExperimentHandler(object):
         elif self.current_experiment_parameters['led_stimulus']:
             self.printc('Start LED stimulus')
             mode=self.guidata.read('Clamp Mode')
+            wf=numpy.zeros((2, self.stimulus_config['WAVEFORM'].shape[1]))
+            wf[1]=self.stimulus_config['WAVEFORM']
             if mode=='Voltage Clamp':
-                wf=numpy.zeros((2, self.stimulus_config['WAVEFORM'].shape[1]))
-                wf[1]=self.stimulus_config['WAVEFORM']
                 wf[0]=self.guidata.read('Clamp Voltage')/self.guidata.read('Voltage Command Sensitivity')    
-                self.wf=wf
-                self.ao, d=daq.set_waveform_start(self.machine_config.ELPHYS_COMMAND_CHANNEL+':1',wf,self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
-            else:
-                self.ao, d=daq.set_waveform_start(self.machine_config.LED_COMMAND_CHANNEL,self.stimulus_config['WAVEFORM'],self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
+            elif mode=='Current Clamp':
+                wf[0]=self.guidata.read('Clamp Current')/self.guidata.read('Current Command Sensitivity')    
+                
+                
+            self.wf=wf
+            self.ao, d=daq.set_waveform_start(self.machine_config.ELPHYS_COMMAND_CHANNEL+':1',wf,self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
             self.ao_duration=self.stimulus_config['WAVEFORM'].shape[1]/self.machine_config.SYNC_RECORDER_SAMPLE_RATE
             experiment_parameters['duration']=self.ao_duration
             experiment_parameters['led waveform']=self.stimulus_config['WAVEFORM']
@@ -781,7 +783,7 @@ class ExperimentHandler(object):
                 if not os.path.exists(os.path.dirname(fn)):
                     time.sleep(0.1)
                 #Here comes merging datafiles if stim computer is available
-                if self.guidata.read('Enable Psychotoolbox') or self.guidata.read('Enable'):
+                if self.guidata.read('Enable Psychotoolbox') or self.guidata.read('Enable')  or self.current_experiment_parameters['led_stimulus'] :
                     fn=self.current_experiment_parameters['outfilename']
                     shutil.copy(self.daqdatafile.filename,fn)
                     self.printc('Sync data saved to {0}'.format(fn))
