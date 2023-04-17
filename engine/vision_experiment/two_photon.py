@@ -11,7 +11,7 @@ try:
     import PyDAQmx
     import PyDAQmx.DAQmxConstants as DAQmxConstants
     import PyDAQmx.DAQmxTypes as DAQmxTypes
-    from visexpman.engine.hardware_interface import scanner_control,camera, stage_control
+    from visexpman.engine.hardware_interface import scanner_control,camera, stage_control, wave_plate, pmt_tripping
     from visexpman.engine.vision_experiment import gui_engine, main_ui,experiment_data
 except:
     print('Import errors')
@@ -194,6 +194,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 {'name': 'Scan Width', 'type': 'float', 'value': 100, 'limits': (30, 500), 'siPrefix': True, 'suffix': 'um'},
                 {'name': 'Scan Height', 'type': 'float', 'value': 100, 'limits': (30, 500), 'siPrefix': True, 'suffix': 'um'},
                 {'name': 'Averaging samples', 'type': 'float', 'value': 1, 'limits': (0, 1000),  'decimals': 6},
+                {'name': 'Red Laser Intensity', 'type': 'float', 'value': 0, 'limits': (0, 100), 'siPrefix': True, 'suffix': '%'},
+                {'name': 'Green Laser Intensity', 'type': 'float', 'value': 0, 'limits': (0, 100), 'siPrefix': True, 'suffix': '%'},
                 {'name': 'Live IR', 'type': 'bool', 'value': False},
                 {'name': 'IR Exposure', 'type': 'float', 'value': 50, 'limits': (1, 1000), 'siPrefix': True, 'suffix': 'ms',  'decimals': 6},
                 {'name': 'IR Gain', 'type': 'float', 'value': 1, 'limits': (0, 1000),  'decimals': 6},
@@ -288,7 +290,14 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 newparams['params/Resolution']!=self.settings['params/Resolution']:
                     self.printc("2p img settings changed")
             
-                    
+            if newparams['params/Red Laser Intensity'] != self.settings['params/Red Laser Intensity']:#!!!!!
+                self.printc('Changing red laser intensity')
+                self.redlaser.set_position(newparams['params/Red Laser Intensity'])
+            if newparams['params/Green Laser Intensity'] != self.settings['params/Green Laser Intensity']:#!!!!!
+                self.printc('Changing green laser intensity')
+                self.greenlaser.set_position(newparams['params/Green Laser Intensity'])
+
+            
             #IR Zoom
             if 'params/IR Zoom' in self.settings and self.settings['params/IR Zoom']!=newparams['params/IR Zoom']:
                 if newparams['params/IR Zoom']=='1x':
@@ -324,12 +333,25 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
 
     def _init_hardware(self):
         self.daq_logfile=self.logger.filename.replace('2p', '2p_daq')
+        self.pmttripping_logfile=self.logger.filename.replace('2p', '2p_pmttripping')
+        self.pmt = pmt_tripping.PMTTripping(self.pmttripping_logfile, 'zoltan@raics.hu')
         self.start_aio()
         self.cam_logfile=self.logger.filename.replace('2p', '2p_cam')
         self.camera=camera.ThorlabsCameraProcess(self.machine_config.THORLABS_CAMERA_DLL,
                                 self.cam_logfile,
                                 self.machine_config.IR_CAMERA_ROI)
         self.camera.start()
+        
+        
+        servoconfig = {'SERVOCONF': {'RR1_servo_ID':  self.machine_config.RR1_SERVO_ID, 'GR1_servo_ID': self.machine_config.GR1_SERVO_ID}}
+        self.redlaser_logfile=self.logger.filename.replace('2p', '2p_redlaser')
+        self.redlaser = wave_plate.WavePlate('RR1', self.redlaser_logfile, servoconfig, self.machine_config.RR1_INTERPOLATION)  
+        self.greenlaser_logfile=self.logger.filename.replace('2p', '2p_greenlaser')
+        self.greenlaser = wave_plate.WavePlate('GR1', self.greenlaser_logfile, servoconfig, self.machine_config.GR1_INTERPOLATION)
+        self.pmttripping_logfile=self.logger.filename.replace('2p', '2p_pmttripping')
+        self.pmt = pmt_tripping.PMTTripping(self.pmttripping_logfile, 'zoltan@raics.hu')
+        
+        
         if not self.machine_config.STAGE_IN_SCANNER_PROCESS:
             try:
                 self.stage=stage_control.SutterStage(self.machine_config.STAGE_PORT,  self.machine_config.STAGE_BAUDRATE)
@@ -366,6 +388,9 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         import psutil
         p = psutil.Process(self.aio.pid)
         p.nice(psutil.REALTIME_PRIORITY_CLASS)
+        
+        if self.pmt.has_tripped() == True:
+            self.pmt.handle_tripping()
         
     def restart_aio(self):
         self.printc('Restart daq process')
@@ -408,7 +433,6 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                                                                     self.settings['params/Advanced/Projector Control Phase']*1e-6,)
         fps=round(self.machine_config.AO_SAMPLE_RATE/waveform_x.shape[0],1)
         return fps
-
 
     def prepare_2p(self, nframes=None, zvalues=None):
         t0=time.time()
@@ -1229,6 +1253,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         import tifffile
         dtag='distorted' if any(self.distorted_s) else ''
         fn=os.path.join(df, os.path.basename(df)+f'_{dtag}_merged_timelapse.tiff')
+        self.printc(self.zstacks.dtype)
         tifffile.imwrite(fn, self.zstacks, imagej=True)
         attributes_txt=''.join(attributes_txt)
         tstxt=','.join(list(map(str, self.timelapse_timepoints)))
@@ -1248,6 +1273,7 @@ def process_zstack(filename, max_pmt_voltage=8):
     #Undistort images based on scanner position signal
     frames, distorted_frames, distorted=scanner_control.pmt2undistorted_image(filename, fcut=5e3)
     frames=frames[1:]#Ignore first frame
+    frames=distorted_frames[1:]#TMP until undistortion fixed
     #remove transient frames
     h=tables.open_file(filename, 'a')
     if hasattr(h.root,'zstack'):

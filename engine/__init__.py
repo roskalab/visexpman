@@ -85,13 +85,19 @@ def application_init(**kwargs):
     #Check free space
     for parname in dir(machine_config):
         if '_PATH' == parname[-5:]:
-            free_space = fileop.free_space(getattr(machine_config, parname))
+            free_space = fileop.free_space(getattr(machine_config, parname))/(2**30)    #GByte
             if  free_space<machine_config.FREE_SPACE_ERROR_THRESHOLD: 
+                print('No free space on {0}. Only {1} MB is available.'
+                               .format(getattr(machine_config, parname), fileop.free_space(getattr(machine_config, parname))/2**20))
                 raise FreeSpaceError('No free space on {0}. Only {1} MB is available.'
                                .format(getattr(machine_config, parname), fileop.free_space(getattr(machine_config, parname))/2**20))
-            elif free_space<machine_config.FREE_SPACE_WARNING_THRESHOLD: 
+            elif free_space<machine_config.FREE_SPACE_WARNING_THRESHOLD:  
                 warnings.warn('Running out of free space on {0} ({1}). Only {2} MB is available.'
-                               .format(getattr(machine_config, parname), parname, fileop.free_space(getattr(machine_config, parname))/2**20))
+                               .format(getattr(machine_config, parname), parname, fileop
+                               .free_space(getattr(machine_config, parname))/2**20))
+                print('Running out of free space on {0} ({1}). Only {2} MB is available.'
+                               .format(getattr(machine_config, parname), parname, fileop
+                               .free_space(getattr(machine_config, parname))/2**20))
     #Check network connection
     if not utils.is_network_available():
         warnings.warn('Check network connection')

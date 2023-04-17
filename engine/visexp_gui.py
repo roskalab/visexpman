@@ -12,13 +12,21 @@ import shutil
 import traceback
 import re
 import copy
-import cPickle as pickle
+try:
+    import cPickle as pickle
+except:
+    import pickle
 import scipy.ndimage
 from PIL import Image, ImageDraw, ImageFont
-
-import PyQt4.Qt as Qt
-import PyQt4.QtGui as QtGui
-import PyQt4.QtCore as QtCore
+try:
+    import PyQt4.Qt as Qt
+    import PyQt4.QtGui as QtGui
+    import PyQt4.QtCore as QtCore
+except:
+    import PyQt5.QtWidgets as  QtWidgets
+    import PyQt5.Qt as Qt
+    import PyQt5.QtGui as QtGui
+    import PyQt5.QtCore as QtCore
 
 import visexpman
 from visexpman.engine.vision_experiment import configuration
@@ -1329,7 +1337,7 @@ class VisionExperimentGui(Qt.QMainWindow):
         
     def notify_user(self, title, message):
         utils.empty_queue(self.poller.gui_thread_queue)
-        QtGui.QMessageBox.question(self, title, message, QtGui.QMessageBox.Ok)
+        QtWidgets.QMessageBox.question(self, title, message,  QtWidgets.QMessageBox.Ok)
         self.poller.gui_thread_queue.put(True)
         self.printc(title + '\t' + message, logonly = True)
         

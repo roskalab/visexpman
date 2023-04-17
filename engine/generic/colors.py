@@ -62,7 +62,7 @@ def get_color(index,unit=True):
           1,1,0,
           1,0,1,
           0,1,1,
-          ],dtype=numpy.float)
+          ],dtype=float)            #Originali it was numpy.float but for the newer versions now it is called just float so i edited it!
     c=numpy.concatenate((c,0.5*c, numpy.array([1,0.5,0,])))
     if not unit:
         c*=255

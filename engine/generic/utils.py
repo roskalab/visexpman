@@ -74,7 +74,7 @@ def resample_array(array, factor):
     Increases sampling rate of array with factor
     '''
     if factor == 1:
-        return arrayutils.py
+        return array
     else:
         return numpy.array([array]*int(factor)).flatten('F')
     
@@ -682,6 +682,29 @@ def list_stdlib():
                 lib_members.append(os.path.join(top, nm)[len(std_lib)+1:-3].replace('\\','.'))
     return lib_members
 
+def load_estimator(looking_time = 5):
+    """
+    It will check how loaded are the resorces and return a dictonary. The Argument
+    is the time for how long it should measure the load.
+        "cpu" : the average load on the cpu [%] on the last /looking_time/ seconds
+        "ram" : the average load on the ram [%] on the last /looking_time/ seconds
+        "net_sent" : upload speed on the last given seconds
+        "net_recv" : download speed on the last given seconds
+
+    """
+    import psutil
+    if looking_time == 0:
+        print("The given argument can not be ZERO, setting it to the default => 5")
+        looking_time = 5
+    ram_avg_load = psutil.virtual_memory()[2]   #RAM
+    network_load_1 = psutil.net_io_counters()   #NET
+    cpu_avg_load = psutil.cpu_percent(interval=looking_time)    # CPU
+    network_load_2 = psutil.net_io_counters()   #NET
+    network_sent_avg_load = (network_load_2.bytes_sent - network_load_1.bytes_sent)/1024/looking_time   #Avarage upload speeed in the last 2 second in kbyte/sec
+    network_recv_avg_load = (network_load_2.bytes_recv - network_load_1.bytes_recv)/1024/looking_time   #Avarage download speeed in the last 2 second in kbyte/sec
+    avg_load = {"cpu" : cpu_avg_load, "ram" : ram_avg_load, "net_sent" : network_sent_avg_load , "net_recv" : network_recv_avg_load }
+    return avg_load
+
 #object <-> numpy array
 def object2str(obj):
     if ENABLE_COMPRESSION:
@@ -724,10 +747,7 @@ def hdf52object(h, vn, default_value = None):
         return default_value
 
 def object2npy(o,fn):
-    if isinstance(o,str):
-        numpy.save(o,object2array(fn))
-    else:
-        numpy.save(fn,object2array(o))
+    numpy.save(fn,object2array(o))
     
 def npy2object(fn):
     return array2object(numpy.load(fn))
@@ -1176,6 +1196,20 @@ def list_swap(l, i1, i2):
     return l
     
 def sendmail(to, subject, txt):
+    import smtplib
+    from email.message import EmailMessage
+    msg = EmailMessage()
+    msg.set_content(txt)
+    msg['Subject'] = subject
+    msg['From'] = "twophoton.notification@gmail.com"
+    msg['To'] = to
+
+    server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+    server.login("twophoton.notification@gmail.com", "yfapunvmdezuefaq")
+    server.send_message(msg)
+    server.quit()
+    
+def sendmail2(to, subject, txt):
     import subprocess
     message = 'Subject:{0}\n\n{1}\n'.format(subject, txt)
     fn='/tmp/email.txt'

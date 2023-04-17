@@ -63,7 +63,7 @@ def get_user_experiment_data_folder(parameters):
     '''
     if not 'outfolder' in parameters:
         raise RuntimeError('outfolder is not available')
-    user_experiment_data_folder = parameters['outfolder']
+    user_experiment_data_folder = str(parameters['outfolder'])
     if not os.path.exists(user_experiment_data_folder):
         os.makedirs(user_experiment_data_folder)
     return str(user_experiment_data_folder)#TODO: need to be investigated why is it a numpy array on elphys platform
@@ -337,7 +337,7 @@ class CaImagingData(supcl):
                     errors.append('Measured frame rate(s): {0} Hz, mean : {2} Hz, expected frame rate: {1} Hz'.format(measured_frame_rate,self.configs['machine_config']['SCREEN_EXPECTED_FRAME_RATE'], measured_frame_rate.mean()))
                 if self.tstim.shape[0]==0:
                     warning.append('No stimulus block timing signal detected')
-                dropped_frames=signal.trigger_indexes(self.sync[:,self.configs['machine_config']['DROPPED_FRAME_INDEX']])[::2]
+                dropped_frames=signal.detect_edges(self.sync[:,self.configs['machine_config']['DROPPED_FRAME_INDEX']], threshold=0.5)[::2]
                 if dropped_frames.shape[0]>3:
                     warning.append(f'{dropped_frames.shape[0]} dropped frames were detected. Check stimulus computer!')
             else:

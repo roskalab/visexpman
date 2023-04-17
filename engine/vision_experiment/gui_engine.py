@@ -4,7 +4,7 @@ import copy
 import sys
 try:
     import Queue
-    import cPickle as pickle
+    import cPickle as pickle                        
 except ImportError:
     import queue as Queue
     import pickle
@@ -27,6 +27,9 @@ from visexpman.engine.analysis import cone_data,aod,elphys
 from visexpman.engine.hardware_interface import queued_socket,daq_instrument,scanner_control,camera_interface,digital_io,instrument,pump_control, daq
 from visexpman.engine.generic import fileop, signal,stringop,utils,introspect,videofile,colors
 from visexpman.applications.visexpman_main import stimulation_tester
+
+#Define the maximum load threshold
+MAX_LOAD = {"cpu" : 80, "ram" : 90, "net_sent" : 5000, "net_recv" : 5000 }
 
 class GUIDataItem(object):
     def __init__(self,name,value,path):
@@ -516,11 +519,16 @@ class ExperimentHandler(object):
                     pass#raise NotImplementedError('MC MEA platform manual experiment start is not yet supported')
         if self.machine_config.PLATFORM in ['2p',  'resonant']:
             if self.machine_config.PLATFORM in ['2p',  'resonant']:
-                if fileop.free_space(self.machine_config.EXPERIMENT_DATA_PATH)/1e9<self.machine_config.FREE_SPACE_ERROR_THRESHOLD:
+                #Free space check
+                free_space = fileop.free_space(self.machine_config.EXPERIMENT_DATA_PATH)/(2**30)
+                if free_space<self.machine_config.FREE_SPACE_ERROR_THRESHOLD:
                     self.notify('Warning', f'Less than {self.machine_config.FREE_SPACE_ERROR_THRESHOLD} GB free space left, experiment does not start')
+                    print(f'Warning, Less than {self.machine_config.FREE_SPACE_ERROR_THRESHOLD} GB free space left, experiment does not start')
                     return
-                elif fileop.free_space(self.machine_config.EXPERIMENT_DATA_PATH)/1e9<self.machine_config.FREE_SPACE_WARNING_THRESHOLD:
+                elif free_space<self.machine_config.FREE_SPACE_WARNING_THRESHOLD:
                     self.notify('Warning', f'Less than {self.machine_config.FREE_SPACE_WARNING_THRESHOLD} GB free space left')
+                    print(f'Warning, less than {self.machine_config.FREE_SPACE_WARNING_THRESHOLD} GB free space left')
+                
                 if self.guidata.read('Stimulus Only') and 'stim' not in self.connected_nodes:
                     self.notify('Warning', 'Stim connection required.')
                     return
@@ -530,6 +538,7 @@ class ExperimentHandler(object):
                         missing_connections=[conn for conn in [scope_name, 'stim'] if conn not in self.connected_nodes]
                         self.notify('Warning', '{0} connection(s) required.'.format(','.join(missing_connections)))
                         return
+            
             #Set z
             if hasattr(experiment_parameters, 'keys') and 'depth' in experiment_parameters and hasattr(self.microscope, 'set_z'):
                 self.microscope.set_z(experiment_parameters['depth'])
@@ -538,6 +547,16 @@ class ExperimentHandler(object):
             if hasattr(experiment_parameters, 'keys') and 'xpos' in experiment_parameters and hasattr(self.microscope, 'set_xy'):
                 self.microscope.set_xy(experiment_parameters['xpos'], experiment_parameters['ypos'])
                 self.printc('Set position to x={0} um, y={1} um'.format(experiment_parameters['xpos'], experiment_parameters['ypos']))
+        
+        #Checking the load on the resources
+        print("Checking the load on the resources...")
+        avg_load = utils.load_estimator()
+        print(avg_load)
+        if (avg_load["cpu"] > MAX_LOAD["cpu"] or avg_load["ram"] > MAX_LOAD["ram"] or avg_load["net_sent"] > MAX_LOAD["net_sent"] or avg_load["net_recv"] > MAX_LOAD["net_recv"]):
+            self.notify('Warning', 'The Load on the resources are too high, can not start the experiment')
+            return
+        
+
         if self.sync_recording_started or self.experiment_running:
             self.notify('Warning', 'Experiment already running')
             return
@@ -2552,16 +2571,17 @@ class ElphysEngine():
         t=numpy.arange(sync.shape[0])/float(self.sample_rate)
         t=t[index:]
         if self.machine_config.PLATFORM=='elphys':
-            mode=self.guidata.read('Clamp Mode')
+            mode=self.guidata.read('Clamp Mode') #Ezt kene  a faljbol es nem inen
             #Scale elphys
             if 'Voltage' in mode:
                 unit='membrane current nA, command mV'
-                scale=self.guidata.read('Current Gain')
-                command_scale=self.guidata.read("Voltage Command Sensitivity")
+                scale=self.guidata.read('Current Gain')         #ezt is
+                command_scale=self.guidata.read("Voltage Command Sensitivity") # ezt is
             elif 'Current' in mode:
                 unit='membrane voltage mV, command: pA'
                 scale=(self.guidata.read('Voltage Gain')/1e3)
-                command_scale=self.guidata.read("Current Command Sensitivity")*1e-3
+                command_scale=self.guidata.read("Current Command Sensitivity")
+                #On Atsuki's setup: command_scale=self.guidata.read("Current Command Sensitivity")*1e-3
             fn= self.filename if hasattr(self, 'filename') else str(self.current_experiment_parameters['stimclass'])
             #scale*=1e-3
             self.command_scale=command_scale
@@ -2574,10 +2594,12 @@ class ElphysEngine():
             stim_disp_ena=True#self.guidata.read('Show Stimulus Trace')
             n=1+int(cmd_disp_ena)
             x=n*[t]
+            self.elphysscale=scale
             y=[self.filtered[index:]/scale]
             cc=[[255, 0, 0]]
             if cmd_disp_ena:
-                y.append(sync[index:, self.machine_config.ELPHYSCOMMAND_INDEX]*command_scale)
+                chindex=self.machine_config.ELPHYSCOMMAND_INDEX
+                y.append(sync[index:, chindex]*command_scale)
                 cc.append([0, 255, 0])
 #            y.append(sync[index:,  self.machine_config.TSTIM_SYNC_INDEX])
 #            cc.append([0, 0, 255])
@@ -3093,7 +3115,5 @@ class TestMainUIEngineIF(unittest.TestCase):
         if hasattr(self, 'working_folder') and os.path.exists(self.working_folder):
             shutil.rmtree(self.working_folder)
         
-
-
 if __name__=='__main__':
     unittest.main()
