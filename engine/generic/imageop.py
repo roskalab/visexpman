@@ -53,7 +53,7 @@ def remove_edge_objects(img):
 def edge_detection(mask):
     import scipy.ndimage
     mask=scipy.ndimage.binary_dilation(mask, iterations=1)-mask
-    return
+    return mask
     
     
 class ImageOpTest(unittest.TestCase):

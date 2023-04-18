@@ -23,7 +23,10 @@ def check_channel(channel):
         pass#TODO: read in couple samples
     
 def set_voltage(channel, voltage):
-    nchannels=int(numpy.diff(list(map(float, channel.split('/')[1][2:].split(':'))))[0]+1)
+    if ':' not in channel:
+        nchannels=1
+    else:
+        nchannels=int(numpy.diff(list(map(float, channel.split('/')[1][2:].split(':'))))[0]+1)
     set_waveform(channel, numpy.ones((nchannels, 10))*voltage,1000)
     
 def set_waveform(channels,waveform,sample_rate = 1000):
