@@ -1361,10 +1361,14 @@ class Analysis(object):
         else:
             self.to_gui.put({'plot_title': os.path.dirname(self.filename)+'<br>'+os.path.basename(self.filename)})
             sync=self.datafile.findvar("sync")
+            if not hasattr(self, 'experiment_parameters_from_file'):
+                self.experiment_parameters_from_file = self.datafile.findvar("parameters")
             if not hasattr(self, 'sample_rate'):
                 self.sample_rate=self.guidata.read('Sample Rate')
                 self.printc('Warning: sample rate must be read from datafile!!!!')
-            self._plot_elphys(sync,  full_view=True)
+            self._plot_elphys(sync,  full_view=True, from_file=True)
+            if not hasattr(self, 'experiment_parameters_from_file'):
+                del self.experiment_parameters_from_file
         if self.machine_config.PLATFORM not in  ['resonant',  "elphys", 'erg']:#Do not load imaging data
             self.datafile.get_image(image_type=self.guidata.read('3d to 2d Image Function'),motion_correction=self.guidata.read('Motion Correction'))
             self.image_scale=self.datafile.scale
@@ -2547,9 +2551,8 @@ class ElphysEngine():
             self.flow_rates.append(fr)
             self.flow_rate_times.append(time.time())
         return fr
-    
-    
-    def _plot_elphys(self, sync, full_view=False):
+        
+    def _plot_elphys(self, sync, full_view=False, from_file=False):
         if self.machine_config.PLATFORM in ['erg']:
             return
         #Filter rawdata
@@ -2571,17 +2574,19 @@ class ElphysEngine():
         t=numpy.arange(sync.shape[0])/float(self.sample_rate)
         t=t[index:]
         if self.machine_config.PLATFORM=='elphys':
-            mode=self.guidata.read('Clamp Mode') #Ezt kene  a faljbol es nem inen
+            #if we opened a file and want to see the previos measurment then we have to load the settings from the file not from the gui
+            mode = self.experiment_parameters_from_file['Clamp Mode'] if from_file else self.guidata.read('Clamp Mode')
             #Scale elphys
             if 'Voltage' in mode:
                 unit='membrane current nA, command mV'
-                scale=self.guidata.read('Current Gain')         #ezt is
-                command_scale=self.guidata.read("Voltage Command Sensitivity") # ezt is
+                #if we opened a file and want to see the previos measurment then we have to load the settings from the file not from the gui
+                scale = self.experiment_parameters_from_file['Current Gain'] if from_file else self.guidata.read('Current Gain')
+                command_scale = self.experiment_parameters_from_file["Voltage Command Sensitivity"] if from_file else self.guidata.read("Voltage Command Sensitivity")
             elif 'Current' in mode:
                 unit='membrane voltage mV, command: pA'
-                scale=(self.guidata.read('Voltage Gain')/1e3)
-                command_scale=self.guidata.read("Current Command Sensitivity")
-                #On Atsuki's setup: command_scale=self.guidata.read("Current Command Sensitivity")*1e-3
+                #if we opened a file and want to see the previos measurment then we have to load the units from the file not from the gui
+                scale = (self.experiment_parameters_from_file['Voltage Gain']/1e3) if from_file else (self.guidata.read('Voltage Gain')/1e3)
+                command_scale = (self.experiment_parameters_from_file["Current Command Sensitivity"]*1e-3) if from_file else self.guidata.read("Current Command Sensitivity")*1e-3 
             fn= self.filename if hasattr(self, 'filename') else str(self.current_experiment_parameters['stimclass'])
             #scale*=1e-3
             self.command_scale=command_scale

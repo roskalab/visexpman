@@ -540,7 +540,7 @@ class Plot(pyqtgraph.GraphicsLayoutWidget):
                 if colors == []:
                     pen = (0,0,0)
                 else:
-                    pen=colors[i]
+                    pen=pyqtgraph.mkPen(width=4.5, color=colors[i])
                 self.curves.append(self.plot.plot(pen=pen))
             self.curves[-1].setData(x[i], y[i])
             minimums.append(y[i].min())

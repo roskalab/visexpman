@@ -545,7 +545,7 @@ class AnalogIoHelpers(object):
                 for i in range(nframes - self.n_ai_reads):
                     data.append(self.queues['data'].get(timeout = 5))
                 data_array = numpy.array(data)
-                if data_array.dtype == numpy.object:#When buffer reads have different lenght
+                if data_array.dtype == object:#When buffer reads have different lenght
                     data_array = numpy.concatenate(tuple(data))
                 return data_array, nframes
             else:
