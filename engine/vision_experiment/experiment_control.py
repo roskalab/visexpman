@@ -568,6 +568,15 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self.datafile.save('corrupt_timing')
                 self.printl(traceback.format_exc())
                 self.printl('{0} saved but timing signal is corrupt'.format(self.datafile.filename))
+        if hasattr(self.machine_config, 'check_signals'):
+            self.printl("Checking signals")
+            msgs=self.machine_config.check_signals(self.datafile.sync, self)
+            if len(msgs)>0:
+                self.printl('Warning! Problem with timing signals!')
+            else:
+                self.printl('Timing signals OK!')
+            for msi in msgs:
+                self.printl(msi)
         if 0 and 'Record Eyecamera' in self.parameters and self.parameters['Record Eyecamera']:
             fps_values, fpsmean,  fpsstd=self.datafile.sync_frame_rate(self.machine_config.TBEHAV_SYNC_INDEX)
             bins=[min(fps_values), fpsmean-fpsstd/2,  fpsmean+fpsstd/2,  max(fps_values)]
