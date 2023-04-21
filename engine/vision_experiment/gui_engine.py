@@ -120,9 +120,12 @@ class ExperimentHandler(object):
         if not os.path.exists(filename):
             self.printc('{0} does not exists'.format(filename))
             return
-        if os.path.basename(os.path.dirname(filename))=='common' and self.machine_config.user!='common':#Stimulus edit is not allowed at multiuser setups
-            self.notify('Warning', 'Common stimulus files cannot be opened for editing')
-            return
+        if hasattr(self.machine_config, 'ENABLE_COMMON_STIMULUS_EDIT') and self.machine_config.ENABLE_COMMON_STIMULUS_EDIT:
+            pass
+        else:
+            if os.path.basename(os.path.dirname(filename))=='common' and self.machine_config.user!='common':#Stimulus edit is not allowed at multiuser setups
+                self.notify('Warning', 'Common stimulus files cannot be opened for editing')
+                return
         lines=fileop.read_text_file(filename).split('\n')
         line=[i for i in range(len(lines)) if 'class '+classname in lines[i]][0]+1+0*20#+20: beginning of class is on the middle of the screen
         self.printc('Opening {0}{3}{1} in gedit at line {2}'.format(filename, classname,line,os.sep))
