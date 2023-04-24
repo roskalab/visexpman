@@ -552,7 +552,7 @@ class ExperimentHandler(object):
         print("Checking the load on the resources...")
         avg_load = utils.load_estimator()
         print(avg_load)
-        if (avg_load["cpu"] > MAX_LOAD["cpu"] or avg_load["ram"] > MAX_LOAD["ram"] or avg_load["net_sent"] > MAX_LOAD["net_sent"] or avg_load["net_recv"] > MAX_LOAD["net_recv"]):
+        if platform.system()!='Darwin' and ((avg_load["cpu"] > MAX_LOAD["cpu"] or avg_load["ram"] > MAX_LOAD["ram"] or avg_load["net_sent"] > MAX_LOAD["net_sent"] or avg_load["net_recv"] > MAX_LOAD["net_recv"])):
             self.notify('Warning', 'The Load on the resources are too high, can not start the experiment')
             return
         
