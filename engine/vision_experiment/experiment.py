@@ -300,7 +300,7 @@ def get_experiment_duration(experiment_config_class, config, source=None):
                 experiment_class = utils.fetch_classes(visexpman.USER_MODULE+'.common', classname = experiment_config_class_object.runnable, required_ancestors = visexpman.engine.vision_experiment.experiment.Experiment,direct = False)[0][1]
                 experiment_class_object = experiment_class(config, experiment_config_class_object)
     if hasattr(experiment_class_object,'calculate_stimulus_duration'):
-        ec=experiment_class_object(config)
+        ec=experiment_class_object(config,init_hardware=False)
         ec.configuration()
         ec.calculate_stimulus_duration()
     else:
@@ -321,7 +321,7 @@ def read_stimulus_parameters(stimname, filename,config):
         source_code=filename
     introspect.import_code(source_code,'experiment_module', add_to_sys_modules=1)
     em=__import__('experiment_module')
-    ec=getattr(em,stimname)(config,create_runnable=False)
+    ec=getattr(em,stimname)(config,create_runnable=False,init_hardware=False)
     dd=introspect.cap_attributes2dict(ec)
     if os.path.exists(filename):
         dd['base classes']=read_stimulus_base_classes(stimname, filename, config)
@@ -342,7 +342,7 @@ def read_stimulus_base_classes(stimname,filename,config):
     source_code=fileop.read_text_file(filename)
     introspect.import_code(source_code,'experiment_module', add_to_sys_modules=1)
     em=__import__('experiment_module')
-    ec=getattr(em,stimname)(config,create_runnable=False)
+    ec=getattr(em,stimname)(config,create_runnable=False,init_hardware=False)
     chain=introspect.base_classes(ec)
     try:
         i=chain.index('ExperimentConfig')
