@@ -481,6 +481,7 @@ class ListParameterItem(WidgetParameterItem):
         
     def value(self):
         key = asUnicode(self.widget.currentText())
+        self.forward[key] = key
         
         return self.forward.get(key, None)
             
