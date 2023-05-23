@@ -102,8 +102,12 @@ class WidgetParameterItem(ParameterItem):
                 'siPrefix': False, 'suffix': '', 'decimals': 3,
             }
             if t == 'int':
+                prefix=''
+                if 'prefix' in opts:
+                    prefix = opts['prefix']
                 defs['int'] = True
                 defs['minStep'] = 1.0
+                defs['format'] = prefix+'{value:d}'
             for k in defs:
                 if k in opts:
                     defs[k] = opts[k]
