@@ -412,6 +412,11 @@ class ParameterTable(ParameterTree):
         self.params = Parameter.create(name='params', type='group', children=params)
         self.setParameters(self.params, showTop=False)
         
+    def update(self, params):
+        self.params = Parameter.create(name='params', type='group', children=params)
+        self.setParameters(self.params, showTop=False)
+        
+        
     def get_parameter_tree(self, return_dict = False,variable_names=False):
         nodes = [[children for children in self.params.children()]]
         import itertools
