@@ -341,7 +341,7 @@ def find_files_and_folders(start_path,  extension = None, filter = None):
                 directories.append(root + os.sep + dir)
             for file in files:
                 if extension != None:
-                    if file.split('.')[-1] == extension:
+                    if file.split('.')[-1] == extension or os.path.splitext(file)[1] == extension:
                         all_files.append(root + os.sep + file)
                 elif filter != None:
                     if filter in file:
