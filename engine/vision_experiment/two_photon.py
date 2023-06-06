@@ -212,12 +212,17 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                     {'name': 'Scale', 'type': 'float', 'value': 1.0,},
                     {'name': 'Rotation', 'type': 'float', 'value': 0.0,  'siPrefix': False, 'suffix': ' degrees'},                    
                 ]}, 
+                {'name': 'Time lapse', 'type': 'group', 'expanded' : True, 'children': [
+                    {'name': 'Enable', 'type': 'bool', 'value': False},
+                    {'name': 'Interval', 'type': 'float', 'value': 300,  'suffix': ' s','decimals': 6},
+                    #{'name': 'N frames', 'type': 'float', 'value': 1},
+                ]}, 
                  {'name': 'Z Stack', 'type': 'group', 'expanded' : False, 'children': [
                     {'name': 'Start', 'type': 'float', 'value': 0, 'siPrefix': False, 'suffix': 'usteps', 'decimals': 6},
                     {'name': 'End', 'type': 'float', 'value': 0,  'siPrefix': False, 'suffix': 'usteps', 'decimals': 6},
                     {'name': 'Step', 'type': 'float', 'value': 1, 'siPrefix': False, 'suffix': 'usteps', 'decimals': 6}, 
                     {'name': 'Samples per depth', 'type': 'int', 'value': 1},
-                    {'name': 'File Format', 'type': 'list', 'value': '.hdf5',  'values': file_formats},
+                    #{'name': 'File Format', 'type': 'list', 'value': '.hdf5',  'values': file_formats},
                 ]}, 
                 {'name': 'Advanced', 'type': 'group', 'expanded' : False, 'children': [
                     {'name': 'Enable Projector', 'type': 'bool', 'value': True},
@@ -230,11 +235,6 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                     {'name': 'Enable scanners', 'type': 'list', 'value': 'both',  'values': ['both', 'X', 'Y', 'None']},
                     {'name': 'X scanner voltage', 'type': 'float', 'value': 0,  'suffix': ' V'},
                     {'name': 'Y scanner voltage', 'type': 'float', 'value': 0,  'suffix': ' V'},
-                ]}, 
-                {'name': 'Time lapse', 'type': 'group', 'expanded' : True, 'children': [
-                    {'name': 'Enable', 'type': 'bool', 'value': False},
-                    {'name': 'Interval', 'type': 'float', 'value': 300,  'suffix': ' s','decimals': 6},
-                    #{'name': 'N frames', 'type': 'float', 'value': 1},
                 ]}, 
             ]
         self.params_config.extend(params)
@@ -272,15 +272,20 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 self.printc('Gain set to {0}'.format(newparams['params/IR Gain']))
             elif newparams['params/Time lapse/Enable'] != self.settings['params/Time lapse/Enable']:
                 if newparams['params/Time lapse/Enable']:
+                    reply=True
                     if len(os.listdir(self.data_folder))>0:
-                        QtGui.QMessageBox.question(self, 'Warning', f'{self.data_folder} is not empty! It is recommended to start saving timelapse to an empty folder!', QtGui.QMessageBox.Ok)
+                        reply = QtGui.QMessageBox.question(self, 'Warning:', f'{self.data_folder} is not empty! It is recommended to start saving timelapse to an empty folder! Continue?', QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
+                        #QtGui.QMessageBox.question(self, 'Warning', f'{self.data_folder} is not empty! It is recommended to start saving timelapse to an empty folder!', QtGui.QMessageBox.Ok)
                     else:
                         QtGui.QMessageBox.question(self, 'Warning', 'Make sure that computer is rebooted before a long recording!', QtGui.QMessageBox.Ok)
-                        
-                    self.statusbar.timelapse_status.setText('2P time lapse')
-                    self.last_scan=time.time()-self.settings['params/Time lapse/Interval']
-                    self.statusbar.timelapse_status.setStyleSheet('background:orange;')
-                    self.daqerror_counter=0
+                    if reply==QtGui.QMessageBox.Yes:
+                        self.statusbar.timelapse_status.setText('2P time lapse')
+                        self.last_scan=time.time()-self.settings['params/Time lapse/Interval']
+                        self.statusbar.timelapse_status.setStyleSheet('background:orange;')
+                        self.daqerror_counter=0
+                        self.disable_timelapse=False
+                    else:
+                        self.disable_timelapse=True
                 else:
                     self.statusbar.timelapse_status.setText('Ready')
                     self.statusbar.timelapse_status.setStyleSheet('background:gray;')
@@ -520,7 +525,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         
     def timelapse_handler(self):
         try:
-            if self.settings['params/Time lapse/Enable']:
+            if self.settings['params/Time lapse/Enable'] and not self.disable_timelapse:
                 now=time.time()
                 self.timelapse_folder=self.data_folder
                 if not hasattr(self,  'last_scan'):
@@ -870,6 +875,10 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
 #        self.background_process()        
     
     def stop_action(self, remote=None, snapshot=False):
+        if self.twop_running:
+            reply = QtGui.QMessageBox.question(self, 'Confirm:', 'Terminate Z stack?', QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
+            if reply == QtGui.QMessageBox.No:
+                return
         try:
             if self.z_stack_running and not snapshot:
                 self.finish_zstack()

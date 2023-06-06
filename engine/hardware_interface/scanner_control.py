@@ -182,6 +182,7 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
         self.data_range_min=0
         self.acquistion_rate=3
         self.max_val=2**16-1
+        self.stage_set_back_timeout=120
         self.to16bit=1/(self.data_range_max-self.data_range_min)*self.max_val
         
     def start(self):
@@ -465,7 +466,17 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
             #self.stage.z=self.zvalues[0]
             self.queues['response'].put('Setting back stage to initial position')
             self.stage.setz(self.zvalues[0])
-            self.queues['response'].put('Z stack Done')
+            for i in range(int(self.stage_set_back_timeout/5)):
+                time.sleep(5)
+                ismoving=self.stage.is_moving()
+                if not ismoving:
+                    break
+                else:
+                    self.queues['response'].put('Stage in motion, please wait.')
+            if self.stage.is_moving():
+                self.queues['response'].put('Z stack Done but stage is still in motion')
+            else:
+                self.queues['response'].put('Z stack Done')
         self.running=False
         
     def set_origin(self):
