@@ -372,8 +372,8 @@ class SutterStage(serial.Serial):
             self.write(b'\x03')#Abort any motion
             self.write(b'a\r')#Set to absolue mode
             print(self.read(100))
-            self.high_speed=True
-            self.set_speed(high=True)
+            self.high_speed=not True
+            self.set_speed(high= not True)
             self.setnowait=False
             initial=self.z
         except:
@@ -383,13 +383,14 @@ class SutterStage(serial.Serial):
         pass
         
     def set_speed(self, high=False):
-        if not high and self.high_speed:
-            self.write('V\x01\x00\r'.encode())#Set speed to 250 ustep/second
+        if not high:# and self.high_speed:
+            #self.write('V\x01\x00\r'.encode())#Set speed to 250 ustep/second 22 s 500 ustep
+            self.write('V\x02\x00\r'.encode())#Set speed to 500 ustep/second, 1 sec
             self.high_speed=False
             time.sleep(100e-3)
             self.check_response()
             print('Set low speed')
-        elif high and not self.high_speed:
+        elif high:# and not self.high_speed:
             self.write('V\x7f\x00\r'.encode())
             self.high_speed=True
             time.sleep(100e-3)

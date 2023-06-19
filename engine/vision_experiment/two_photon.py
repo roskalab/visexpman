@@ -194,8 +194,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 {'name': 'Scan Width', 'type': 'float', 'value': 100, 'limits': (30, 500), 'siPrefix': True, 'suffix': 'um'},
                 {'name': 'Scan Height', 'type': 'float', 'value': 100, 'limits': (30, 500), 'siPrefix': True, 'suffix': 'um'},
                 {'name': 'Averaging samples', 'type': 'float', 'value': 1, 'limits': (0, 1000),  'decimals': 6},
-                {'name': 'Red Laser Intensity', 'type': 'float', 'value': 0, 'limits': (0, 100), 'siPrefix': True, 'suffix': '%'},
-                {'name': 'Green Laser Intensity', 'type': 'float', 'value': 0, 'limits': (0, 100), 'siPrefix': True, 'suffix': '%'},
+                {'name': 'Red Laser Intensity', 'type': 'float', 'value': 0, 'limits': (0, 400), 'siPrefix': True, 'suffix': '%'},
+                {'name': 'Green Laser Intensity', 'type': 'float', 'value': 0, 'limits': (0, 400), 'siPrefix': True, 'suffix': '%'},
                 {'name': 'Live IR', 'type': 'bool', 'value': False},
                 {'name': 'IR Exposure', 'type': 'float', 'value': 50, 'limits': (1, 1000), 'siPrefix': True, 'suffix': 'ms',  'decimals': 6},
                 {'name': 'IR Gain', 'type': 'float', 'value': 1, 'limits': (0, 1000),  'decimals': 6},
@@ -221,7 +221,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                     {'name': 'Start', 'type': 'float', 'value': 0, 'siPrefix': False, 'suffix': 'usteps', 'decimals': 6},
                     {'name': 'End', 'type': 'float', 'value': 0,  'siPrefix': False, 'suffix': 'usteps', 'decimals': 6},
                     {'name': 'Step', 'type': 'float', 'value': 1, 'siPrefix': False, 'suffix': 'usteps', 'decimals': 6}, 
-                    {'name': 'Samples per depth', 'type': 'int', 'value': 1},
+                   # {'name': 'Samples per depth', 'type': 'int', 'value': 1},
                     #{'name': 'File Format', 'type': 'list', 'value': '.hdf5',  'values': file_formats},
                 ]}, 
                 {'name': 'Advanced', 'type': 'group', 'expanded' : False, 'children': [
@@ -275,17 +275,18 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                     reply=True
                     if len(os.listdir(self.data_folder))>0:
                         reply = QtGui.QMessageBox.question(self, 'Warning:', f'{self.data_folder} is not empty! It is recommended to start saving timelapse to an empty folder! Continue?', QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
-                        #QtGui.QMessageBox.question(self, 'Warning', f'{self.data_folder} is not empty! It is recommended to start saving timelapse to an empty folder!', QtGui.QMessageBox.Ok)
+                        #QtGui.QMessageBox.question(self, 'Warning', f'{self.data_folder} is not empty! It is recommended to start saving timelapse to an empty folder!', QtGui.QMessageBox.Ok)                        
+                        if reply:
+                            self.statusbar.timelapse_status.setText('2P time lapse')
+                            self.last_scan=time.time()-self.settings['params/Time lapse/Interval']
+                            self.statusbar.timelapse_status.setStyleSheet('background:orange;')
+                            self.daqerror_counter=0
+                            self.disable_timelapse=False
+                        else:
+                            self.disable_timelapse=True
                     else:
                         QtGui.QMessageBox.question(self, 'Warning', 'Make sure that computer is rebooted before a long recording!', QtGui.QMessageBox.Ok)
-                    if reply==QtGui.QMessageBox.Yes:
-                        self.statusbar.timelapse_status.setText('2P time lapse')
-                        self.last_scan=time.time()-self.settings['params/Time lapse/Interval']
-                        self.statusbar.timelapse_status.setStyleSheet('background:orange;')
-                        self.daqerror_counter=0
                         self.disable_timelapse=False
-                    else:
-                        self.disable_timelapse=True
                 else:
                     self.statusbar.timelapse_status.setText('Ready')
                     self.statusbar.timelapse_status.setStyleSheet('background:gray;')
@@ -487,20 +488,17 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             self.statusbar.twop_status.setText('2P')
             self.statusbar.twop_status.setStyleSheet('background:red;')
         t1=time.time()
-        print(1)
         fps=round(self.machine_config.AO_SAMPLE_RATE/self.waveform.shape[1],1)
         if not self.settings['params/Time lapse/Enable']:
             self.printc(f'2p frame rate {fps} Hz,  dwell time: {self.dwell_time} ms/V')
         frq_xscan=(utils.roundint(self.settings['params/Scan Height'] * self.settings['params/Resolution'])+self.settings['params/Advanced/Y Return Time'])*fps
         t2=time.time()
-        print(2)
         if not self.settings['params/Time lapse/Enable']:
             self.printc(f'X scanner frequency: {frq_xscan} Hz')
         self.twop_fps=fps
         self.intensities=[]
         self.frame_counter=0
         t3=time.time()
-        print(3)
         self.printc(f'Debug: {t3-t2},  {t2-t1},  {t1-t0}')
         
     def test(self):
@@ -588,7 +586,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         
     def record_action(self, nframes=None, zvalues=None):
         try:
-            tag='2p_'+self.settings['params/Name']
+            tag=('2p_' if zvalues is None else '2pz_')+self.settings['params/Name']
             if self.twop_running:
                 self.stop_action()
             params={'id': experiment_data.get_id(), 'outfolder': self.machine_config.EXPERIMENT_DATA_PATH}
@@ -875,7 +873,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
 #        self.background_process()        
     
     def stop_action(self, remote=None, snapshot=False):
-        if self.twop_running:
+        if self.twop_running and self.z_stack_running:
             reply = QtGui.QMessageBox.question(self, 'Confirm:', 'Terminate Z stack?', QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
             if reply == QtGui.QMessageBox.No:
                 return
@@ -1022,11 +1020,11 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             if e<s:
                 raise ValueError('Only upward motion allowed. Ensure that start position is lower than end position')
             self.depths=numpy.linspace(s, e, int(abs(s-e)/st+1))
-            steptime=1 if st<1000 else st/1000
-            steptime*=4
+            steptime=1 if st<1000 else st/1000*1.5
+            steptime*=8#Calibrated for 500 usteps
             self.stepsamples=int(numpy.ceil(self.get_fps()*steptime))
             self.printc(f"Z stack in {', '.join(map(str,self.depths))}, stepsamples: {self.stepsamples}")
-            self.zvalues=numpy.repeat(self.depths, self.settings['params/Z Stack/Samples per depth']+self.stepsamples)
+            self.zvalues=numpy.repeat(self.depths, self.settings['params/Averaging samples']+self.stepsamples)
             self.record_action(zvalues=self.zvalues)
             self.statusbar.twop_status.setText('Z stack')
             self.statusbar.twop_status.setStyleSheet('background:red;')
@@ -1041,7 +1039,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             datacompressor = tables.Filters(complevel=5, complib='zlib', shuffle = 1)
             h=int(self.settings['params/Resolution']*self.settings['params/Scan Height'])
             w=int(self.settings['params/Resolution']*self.settings['params/Scan Width'])
-            datatype = tables.UInt16Atom((self.settings['params/Z Stack/Samples per depth'], h, w, 2))
+            datatype = tables.UInt16Atom((self.settings['params/Averaging samples'], h, w, 2))
             self.zstack_data_handle=self.zstackfile.create_earray(self.zstackfile.root, 'zstackdata', datatype, (0,),filters=datacompressor)
             self.tifffns=[]
         except:
@@ -1055,7 +1053,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                         self.stage.z=self.depths[self.depth_index]
                         time.sleep(2)
                         self.printc(f"Set position to {self.stage.z} ustep")
-                        self.record_action(nframes=self.settings['params/Z Stack/Samples per depth'])
+                        self.record_action(nframes=self.settings['params/Averaging samples'])
                         self.z_stack_state='wait'
                 elif self.z_stack_state=='wait':
                     if not self.nframes_recording_running:
@@ -1063,7 +1061,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                         time.sleep(15)
                         fileop.wait4file_ready(self.filename, min_size=0.5e6)
                         h=tables.open_file(self.filename, 'r')
-                        data=h.root.twopdata.read()[-self.settings['params/Z Stack/Samples per depth']:]
+                        data=h.root.twopdata.read()[-self.settings['params/Averaging samples']:]
                         self.printc(data.shape)
                         self.zstack_data_handle.append(data[None, :])
                         h.close()
@@ -1202,6 +1200,9 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             self.data_folder=df
             
     def process_action(self):
+        if self.settings['params/Time lapse/Enable']:
+            self.printl('Stop timelapse first!')
+            return
         df= QtGui.QFileDialog.getExistingDirectory(self, 'Select folder to process. Make sure that folder contains only timelapse files from one recording!',  self.data_folder).replace('/','\\')
         if df.lower()[0]=='g':
             raise IOError('Files from Google drive are not processed')
@@ -1226,7 +1227,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             self.statusbar.progressbar.setValue(i+1)
             QtCore.QCoreApplication.instance().processEvents()
         if max([s[1:3] for s in self.shapes])!=min([s[1:3] for s in self.shapes]):
-            raise ValueError('Not all files have the same scan windows')
+            raise ValueError('Not all files have the same scan window')
         self.printc(f'Undistort images and remove transient images in {df}')
         self.zstacks=[]
         self.timelapse_timepoints=[]
@@ -1291,8 +1292,8 @@ def process_zstack(filename, max_pmt_voltage=8):
     transient_indexes=numpy.nonzero(numpy.diff(h.root.twopdata.attrs.zvalues))[0]
     transient_indexes=numpy.insert(transient_indexes,0,0)
     valid_start_indexes=transient_indexes+h.root.twopdata.attrs.stepsamples
-    valid_end_indexes=valid_start_indexes+h.root.twopdata.attrs.params_Z_Stack_Samples_per_depth
-    zstack=numpy.zeros((valid_start_indexes.shape[0], h.root.twopdata.attrs.params_Z_Stack_Samples_per_depth, frames.shape[1], frames.shape[2]))
+    valid_end_indexes=valid_start_indexes+int(h.root.twopdata.attrs.params_Averaging_samples)
+    zstack=numpy.zeros((valid_start_indexes.shape[0], int(h.root.twopdata.attrs.params_Averaging_samples), frames.shape[1], frames.shape[2]))
     for stepi in range(valid_start_indexes.shape[0]):
         zstack[stepi]=frames[valid_start_indexes[stepi]:valid_end_indexes[stepi]]
     zvalues=numpy.array(list(set(h.root.twopdata.attrs.zvalues)))

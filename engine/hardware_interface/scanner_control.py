@@ -182,7 +182,7 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
         self.data_range_min=0
         self.acquistion_rate=3
         self.max_val=2**16-1
-        self.stage_set_back_timeout=120
+        self.stage_set_back_timeout=300
         self.to16bit=1/(self.data_range_max-self.data_range_min)*self.max_val
         
     def start(self):
@@ -462,22 +462,45 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
             self.printl(f'Saved to {tifffn}')
             self.printl('Closing file')
         self.printl(f'Recorded {self.frame_counter} frames, sent {self.ct} frames to GUI, {self.cct} frames saved')
-        if self.zvalues!=[] and self.zvalues is not None:
-            #self.stage.z=self.zvalues[0]
-            self.queues['response'].put('Setting back stage to initial position')
-            self.stage.setz(self.zvalues[0])
-            for i in range(int(self.stage_set_back_timeout/5)):
-                time.sleep(5)
-                ismoving=self.stage.is_moving()
-                if not ismoving:
-                    break
-                else:
-                    self.queues['response'].put('Stage in motion, please wait.')
-            if self.stage.is_moving():
-                self.queues['response'].put('Z stack Done but stage is still in motion')
+        for i in range(5):
+            if self.set_back_z():#Try setting back 5x
+                break
             else:
-                self.queues['response'].put('Z stack Done')
+                self.queues['response'].put('Retrying...')
+        self.queues['response'].put(f'Z stack Done, current position: {self.stage.z}')
         self.running=False
+        
+    def set_back_z(self,  waittime=3):
+        if self.zvalues!=[] and self.zvalues is not None:
+            try:
+                #self.stage.z=self.zvalues[0]
+                self.queues['response'].put(f'Setting back stage to initial position: {self.zvalues[0]}')
+                for i in range(int(self.stage_set_back_timeout/waittime)):
+                    ismoving=self.stage.is_moving()
+                    if not ismoving:
+                        break
+                    self.queues['response'].put(f'still in motion,  {ismoving},  {i}')
+                    time.sleep(waittime)
+                self.stage.set_speed(high= True)
+                self.stage.setz(self.zvalues[0])
+                for i in range(int(self.stage_set_back_timeout/waittime)):
+                    time.sleep(waittime)
+                    ismoving=self.stage.is_moving()
+                    self.queues['response'].put(f'{ismoving},  {i}')
+                    if not ismoving:
+                        break
+                    else:
+                        self.queues['response'].put('Stage in motion, please wait.')
+                zz=self.stage.z
+                self.queues['response'].put(f'Stage at {zz}')
+                self.stage.set_speed(high= False)
+                return self.zvalues[0]==zz
+            except:
+                import traceback
+                self.queues['response'].put(traceback.format_exc())
+                self.stage.set_speed(high= False)
+        else:
+            return True
         
     def set_origin(self):
         self.queues['command'].put(('set_origin',))
