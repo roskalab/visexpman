@@ -161,7 +161,7 @@ def digital_pulse(channel,duration):
     digital_output.ClearTask()
             
 class SyncAnalogIO():
-    def __init__(self, ai_channels,  ao_channels,  timeout=1, ao_channels2=None):
+    def __init__(self, ai_channels, ao_channels, timeout=1, ao_channels2=None):
         self.timeout=timeout
         self.ai_channels=ai_channels
         self.ao_channels=ao_channels
@@ -225,9 +225,10 @@ class SyncAnalogIO():
             self.analog_output.ExportSignal(DAQmxConstants.DAQmx_Val_10MHzRefClock, '/{0}/RTSI0' .format(self.ao_channels.split('/')[0]))
             
         self.read_buffer = DAQmxTypes.int32()
-        
-        self.analog_output2.SetRefClkRate(10000000)
-        self.analog_output2.SetRefClkSrc('/{0}/RTSI0' .format(self.ai_channels.split('/')[0]))
+
+        if self.ao_channels2 is not None:
+            self.analog_output2.SetRefClkRate(10000000)
+            self.analog_output2.SetRefClkSrc('/{0}/RTSI0' .format(self.ai_channels.split('/')[0]))
 
         
     def start(self, ai_sample_rate, ao_sample_rate,  waveform, waveform2=None):
@@ -306,11 +307,15 @@ class SyncAnalogIO():
         ai_data=self.read()
         self.analog_output.StopTask()
         self.analog_input.StopTask()
+        if self.ao_channels2 is not None:
+            self.analog_output2.StopTask()
         return ai_data
         
     def close(self):
         self.analog_output.ClearTask()
         self.analog_input.ClearTask()
+        if self.ao_channels2 is not None:
+            self.analog_output2.ClearTask()
         
         
 class AnalogRecorder(multiprocessing.Process):
