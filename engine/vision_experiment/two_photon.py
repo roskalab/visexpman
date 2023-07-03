@@ -8,6 +8,7 @@ try:
     import PyQt5.Qt as Qt
     import PyQt5.QtGui as QtGui
     import PyQt5.QtCore as QtCore
+    import PyQt5.QtWidgets as QtWidgets
     import PyDAQmx
     import PyDAQmx.DAQmxConstants as DAQmxConstants
     import PyDAQmx.DAQmxTypes as DAQmxTypes
@@ -39,29 +40,29 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.addToolBar(self.toolbar)
         
         self.statusbar=self.statusBar()
-        self.statusbar.progressbar=QtGui.QProgressBar(self)
+        self.statusbar.progressbar=QtWidgets.QProgressBar(self)
         self.statusbar.progressbar.setTextVisible(False)
         self.statusbar.progressbar.setRange(0, 100)
         
         self.statusbar.addPermanentWidget(self.statusbar.progressbar)
-        self.statusbar.info=QtGui.QLabel('', self)
+        self.statusbar.info=QtWidgets.QLabel('', self)
         self.statusbar.addPermanentWidget(self.statusbar.info)
-        self.statusbar.ircamera_status=QtGui.QLabel('', self)
+        self.statusbar.ircamera_status=QtWidgets.QLabel('', self)
         self.statusbar.addPermanentWidget(self.statusbar.ircamera_status)
-        self.statusbar.twop_status=QtGui.QLabel('', self)
+        self.statusbar.twop_status=QtWidgets.QLabel('', self)
         self.statusbar.addPermanentWidget(self.statusbar.twop_status)
-        self.statusbar.timelapse_status=QtGui.QLabel('', self)
+        self.statusbar.timelapse_status=QtWidgets.QLabel('', self)
         self.statusbar.addPermanentWidget(self.statusbar.timelapse_status)
         
         
         self.debug = gui.Debug(self)
         
-        self.main_tab = QtGui.QTabWidget(self)
+        self.main_tab = QtWidgets.QTabWidget(self)
         self.params = gui.ParameterTable(self, self.params_config)
         self.params.params.sigTreeStateChanged.connect(self.parameter_changed)
         self.main_tab.addTab(self.params, 'Settings')
         
-        self.video_player = QtGui.QWidget()
+        self.video_player = QtWidgets.QWidget()
         self.saved_image = gui.Image(self)
         self.plot=gui.Plot(self)
         self.plot.plot.setLabels(left='PMT Voltage [V]')
@@ -147,8 +148,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.image.plot.setLabels(bottom='um', left='um')
         
         
-        self.im_container = QtGui.QWidget()
-        l = QtGui.QGridLayout()
+        self.im_container = QtWidgets.QWidget()
+        l = QtWidgets.QGridLayout()
         self.im_container.setLayout(l)
         l.setSpacing(0)
         self.histogram=pyqtgraph.HistogramLUTWidget()
@@ -274,7 +275,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 if newparams['params/Time lapse/Enable']:
                     reply=True
                     if len(os.listdir(self.data_folder))>0:
-                        reply = QtGui.QMessageBox.question(self, 'Warning:', f'{self.data_folder} is not empty! It is recommended to start saving timelapse to an empty folder! Continue?', QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
+                        reply = QtWidgets.QMessageBox.question(self, 'Warning:', f'{self.data_folder} is not empty! It is recommended to start saving timelapse to an empty folder! Continue?', QtWidgets.QMessageBox.Yes, QtWidgets.QMessageBox.No)
                         #QtGui.QMessageBox.question(self, 'Warning', f'{self.data_folder} is not empty! It is recommended to start saving timelapse to an empty folder!', QtGui.QMessageBox.Ok)                        
                         if reply:
                             self.statusbar.timelapse_status.setText('2P time lapse')
@@ -285,7 +286,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                         else:
                             self.disable_timelapse=True
                     else:
-                        QtGui.QMessageBox.question(self, 'Warning', 'Make sure that computer is rebooted before a long recording!', QtGui.QMessageBox.Ok)
+                        QtWidgets.QMessageBox.question(self, 'Warning', 'Make sure that computer is rebooted before a long recording!', QtWidgets.QMessageBox.Ok)
                         self.disable_timelapse=False
                 else:
                     self.statusbar.timelapse_status.setText('Ready')
@@ -340,8 +341,9 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
 
     def _init_hardware(self):
         self.daq_logfile=self.logger.filename.replace('2p', '2p_daq')
-        self.pmttripping_logfile=self.logger.filename.replace('2p', '2p_pmttripping')
-        self.pmt = pmt_tripping.PMTTripping(self.pmttripping_logfile, 'zoltan@raics.hu')
+        if self.machine_config.ENABLE_PMT_TRIPPING_DETECTION:
+            self.pmttripping_logfile=self.logger.filename.replace('2p', '2p_pmttripping')
+            self.pmt = pmt_tripping.PMTTripping(self.pmttripping_logfile, 'zoltan@raics.hu')
         self.start_aio()
         self.cam_logfile=self.logger.filename.replace('2p', '2p_cam')
         self.camera=camera.ThorlabsCameraProcess(self.machine_config.THORLABS_CAMERA_DLL,
@@ -349,14 +351,15 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                                 self.machine_config.IR_CAMERA_ROI)
         self.camera.start()
         
-        
-        servoconfig = {'SERVOCONF': {'RR1_servo_ID':  self.machine_config.RR1_SERVO_ID, 'GR1_servo_ID': self.machine_config.GR1_SERVO_ID}}
-        self.redlaser_logfile=self.logger.filename.replace('2p', '2p_redlaser')
-        self.redlaser = wave_plate.WavePlate('RR1', self.redlaser_logfile, servoconfig, self.machine_config.RR1_INTERPOLATION)  
-        self.greenlaser_logfile=self.logger.filename.replace('2p', '2p_greenlaser')
-        self.greenlaser = wave_plate.WavePlate('GR1', self.greenlaser_logfile, servoconfig, self.machine_config.GR1_INTERPOLATION)
-        self.pmttripping_logfile=self.logger.filename.replace('2p', '2p_pmttripping')
-        self.pmt = pmt_tripping.PMTTripping(self.pmttripping_logfile, 'zoltan@raics.hu')
+        if self.machine_config.ENABLE_WAVEPLATE:
+            servoconfig = {'SERVOCONF': {'RR1_servo_ID':  self.machine_config.RR1_SERVO_ID, 'GR1_servo_ID': self.machine_config.GR1_SERVO_ID}}
+            self.redlaser_logfile=self.logger.filename.replace('2p', '2p_redlaser')
+            self.redlaser = wave_plate.WavePlate('RR1', self.redlaser_logfile, servoconfig, self.machine_config.RR1_INTERPOLATION)  
+            self.greenlaser_logfile=self.logger.filename.replace('2p', '2p_greenlaser')
+            self.greenlaser = wave_plate.WavePlate('GR1', self.greenlaser_logfile, servoconfig, self.machine_config.GR1_INTERPOLATION)
+        if self.machine_config.ENABLE_PMT_TRIPPING_DETECTION:
+            self.pmttripping_logfile=self.logger.filename.replace('2p', '2p_pmttripping')
+            self.pmt = pmt_tripping.PMTTripping(self.pmttripping_logfile, 'zoltan@raics.hu')
         
         
         if not self.machine_config.STAGE_IN_SCANNER_PROCESS:
@@ -373,7 +376,20 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
     def start_aio(self):
         self.waveform_generator=scanner_control.ScannerWaveform(machine_config=self.machine_config)
         if self.machine_config.STAGE_IN_SCANNER_PROCESS:
-            self.aio=scanner_control.SyncAnalogIORecorder(self.machine_config.AI_CHANNELS,
+            if hasattr(self.machine_config, 'AO_CHANNELS2'):
+                print(self.machine_config.STAGE_IN_SCANNER_PROCESS,self.machine_config.AO_CHANNELS2)
+                self.aio=scanner_control.SyncAnalogIORecorder(self.machine_config.AI_CHANNELS,
+                                                                        self.machine_config.AO_CHANNELS,
+                                                                        self.daq_logfile,
+                                                                        timeout=self.machine_config.DAQ_TIMEOUT,
+                                                                        ai_sample_rate=self.machine_config.AI_SAMPLE_RATE,
+                                                                        ao_sample_rate=self.machine_config.AO_SAMPLE_RATE,
+                                                                        shutter_port=self.machine_config.SHUTTER_PORT,
+                                                                        stage_port=self.machine_config.STAGE_PORT,
+                                                                        stage_baudrate=self.machine_config.STAGE_BAUDRATE,
+                                                                        ao_channels2 = self.machine_config.AO_CHANNELS2)
+            else:
+                self.aio=scanner_control.SyncAnalogIORecorder(self.machine_config.AI_CHANNELS,
                                                                         self.machine_config.AO_CHANNELS,
                                                                         self.daq_logfile,
                                                                         timeout=self.machine_config.DAQ_TIMEOUT,
@@ -381,8 +397,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                                                                         ao_sample_rate=self.machine_config.AO_SAMPLE_RATE,
                                                                         shutter_port=self.machine_config.SHUTTER_PORT, 
                                                                         stage_port=self.machine_config.STAGE_PORT, 
-                                                                        stage_baudrate=self.machine_config.STAGE_BAUDRATE, 
-                                                                        encoder_channel=self.machine_config.ENCODER_CHANNEL)
+                                                                        stage_baudrate=self.machine_config.STAGE_BAUDRATE)
         else:
             self.aio=scanner_control.SyncAnalogIORecorder(self.machine_config.AI_CHANNELS,
                                                                         self.machine_config.AO_CHANNELS,
@@ -396,7 +411,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         p = psutil.Process(self.aio.pid)
         p.nice(psutil.REALTIME_PRIORITY_CLASS)
         
-        if self.pmt.has_tripped() == True:
+        if hasattr(self, 'pmt') and self.pmt.has_tripped() == True:
             self.pmt.handle_tripping()
         
     def restart_aio(self):
@@ -875,8 +890,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
     
     def stop_action(self, remote=None, snapshot=False):
         if self.twop_running and self.z_stack_running:
-            reply = QtGui.QMessageBox.question(self, 'Confirm:', 'Terminate Z stack?', QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
-            if reply == QtGui.QMessageBox.No:
+            reply = QtWidgets.QMessageBox.question(self, 'Confirm:', 'Terminate Z stack?', QtWidgets.QMessageBox.Yes, QtWidgets.QMessageBox.No)
+            if reply == QtWidgets.QMessageBox.No:
                 return
         try:
             if self.z_stack_running and not snapshot:
@@ -932,7 +947,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
     def open_reference_image_action(self, remote=None):
         
         if(remote==False):
-            fname = str(QtGui.QFileDialog.getOpenFileName(self, 'Open Reference Image', self.machine_config.EXPERIMENT_DATA_PATH, '*.hdf5'))
+            fname = str(QtWidgets.QFileDialog.getOpenFileName(self, 'Open Reference Image', self.machine_config.EXPERIMENT_DATA_PATH, '*.hdf5'))
         else:
             fname = remote
         
@@ -988,7 +1003,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             return
         
         if(remote==False):
-            fname = str(QtGui.QFileDialog.getSaveFileName(self, 'Save Reference Image', self.machine_config.EXPERIMENT_DATA_PATH, '*.hdf5'))
+            fname = str(QtWidgets.QFileDialog.getSaveFileName(self, 'Save Reference Image', self.machine_config.EXPERIMENT_DATA_PATH, '*.hdf5'))
         else:
             fname = remote
         
@@ -1012,8 +1027,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             self.zstack_filename=experiment_data.get_recording_path(self.machine_config,params, f'zstack_{name}')
             self.zstack_filename=os.path.join(self.data_folder, os.path.basename(self.zstack_filename))
             if hasattr(self, 'timelapse_folder') and not self.settings['params/Time lapse/Enable'] and self.timelapse_folder==self.data_folder:
-                reply = QtGui.QMessageBox.question(self, 'Confirm:', 'Saving z stack to timelapse folder is not recommended. Merging timelapse recordings could fail. Continue?', QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
-                if reply == QtGui.QMessageBox.No:
+                reply = QtWidgets.QMessageBox.question(self, 'Confirm:', 'Saving z stack to timelapse folder is not recommended. Merging timelapse recordings could fail. Continue?', QtWidgets.QMessageBox.Yes, QtWidgets.QMessageBox.No)
+                if reply == QtWidgets.QMessageBox.No:
                     return
             s=self.settings['params/Z Stack/Start']
             e=self.settings['params/Z Stack/End']
@@ -1102,7 +1117,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.printc(f'z position: {self.aio.read_z()} ustep')
         
     def set_origin_action(self):
-        reply = QtGui.QMessageBox.question(self, 'Confirm:', 'Set stage origin?', QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
+        reply = QtWidgets.QMessageBox.question(self, 'Confirm:', 'Set stage origin?', QtWidgets.QMessageBox.Yes, QtWidgets.QMessageBox.No)
         if not reply:
             return
         self.aio.set_origin()
@@ -1149,7 +1164,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                     message='\n'.join(lines[index:])
                     self.stop_action()
                     self.printc(message)
-                    QtGui.QMessageBox.question(self, 'Error', message, QtGui.QMessageBox.Ok)
+                    QtWidgets.QMessageBox.question(self, 'Error', message, QtWidgets.QMessageBox.Ok)
                     self.error_shown=True
         
     def background_process(self):
@@ -1193,7 +1208,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                     self.ir_image[:, line_index]=pixels[i*self.ir_image.shape[0]: (i+1)*self.ir_image.shape[0]]
 
     def select_data_folder_action(self):
-        df= QtGui.QFileDialog.getExistingDirectory(self, 'Select data folder',  self.data_folder).replace('/','\\')
+        df= QtWidgets.QFileDialog.getExistingDirectory(self, 'Select data folder',  self.data_folder).replace('/','\\')
         self.printc(f'Selected data folder is {df}')
         if 'g:' in df.lower():
             raise IOError("Saving directly to Google drive not supported")
@@ -1204,7 +1219,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         if self.settings['params/Time lapse/Enable']:
             self.printl('Stop timelapse first!')
             return
-        df= QtGui.QFileDialog.getExistingDirectory(self, 'Select folder to process. Make sure that folder contains only timelapse files from one recording!',  self.data_folder).replace('/','\\')
+        df= QtWidgets.QFileDialog.getExistingDirectory(self, 'Select folder to process. Make sure that folder contains only timelapse files from one recording!',  self.data_folder).replace('/','\\')
         if df.lower()[0]=='g':
             raise IOError('Files from Google drive are not processed')
         self.statusbar.twop_status.setText('Busy')

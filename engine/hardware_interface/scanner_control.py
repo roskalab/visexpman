@@ -176,7 +176,7 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
         self.queues={'command': multiprocessing.Queue(), 'response': multiprocessing.Queue(), 'data': multiprocessing.Queue(),\
                         'rawimage':multiprocessing.Queue(), 'raw':multiprocessing.Queue(), 'stage':multiprocessing.Queue()}
         instrument.InstrumentProcess.__init__(self, self.queues, logfile)
-        daq.SyncAnalogIO.__init__(self,  ai_channels,  ao_channels,  kwargs['timeout'])
+        daq.SyncAnalogIO.__init__(self,  ai_channels,  ao_channels,  kwargs['timeout'], ao_channels2=kwargs.get('ao_channels2',None))
         self.kwargs=kwargs
         self.data_range_max=10
         self.data_range_min=0
@@ -276,7 +276,8 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
             if 'stage_port' in self.kwargs:
                 self.stage=stage_control.SutterStage(self.kwargs['stage_port'],  self.kwargs['stage_baudrate'])
                 self.stage.setnowait=True#Stage does not block at setting stage position
-                self.encoder=stage_control.EncoderReader(self.kwargs['encoder_channel'])
+                if 'encoder_channel' in self.kwargs:
+                    self.encoder=stage_control.EncoderReader(self.kwargs['encoder_channel'])
             while True:
                 now=time.time()
                 if now-tlast>10:
@@ -328,7 +329,11 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                         bt=waveform.shape[1]/self.kwargs['ao_sample_rate']
                         self.printl(f'buffer time is {bt}')
                         self.analog_input.CfgInputBuffer(1000000)
-                        daq.SyncAnalogIO.start(self, self.kwargs['ai_sample_rate'], self.kwargs['ao_sample_rate'],  waveform)
+                        waveform2= waveform[2:] if 'ao_channels2' in self.kwargs else None
+                        if 'ao_channels2' in self.kwargs:
+                            self.waveform=self.waveform[:2]
+                            waveform=waveform[:2]
+                        daq.SyncAnalogIO.start(self, self.kwargs['ai_sample_rate'], self.kwargs['ao_sample_rate'], waveform=waveform,waveform2=waveform2)
                         self.printl('Started to save to {0}'.format(filename))
                         self.filename=filename
                         self.frame_counter=0
@@ -456,6 +461,9 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
         self.printl("self.analog_output.StopTask()")
         self.analog_input.StopTask()
         self.printl("self.analog_input.StopTask()")
+        if self.ao_channels2 is not None:
+            self.analog_output2.StopTask()
+            self.printl("self.analog_input2.StopTask()")
         self.printl("DAQ terminated")
         if hasattr(self,'data_handle'):
             if readout is not None and len(readout.shape)==2:#In some cases the last readut from daq has an extra dimension. Reason unknown
