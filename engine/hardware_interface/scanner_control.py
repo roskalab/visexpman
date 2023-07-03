@@ -182,7 +182,7 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
         self.data_range_min=0
         self.acquistion_rate=3
         self.max_val=2**16-1
-        self.stage_set_back_timeout=120
+        self.stage_set_back_timeout=300
         self.to16bit=1/(self.data_range_max-self.data_range_min)*self.max_val
         
     def start(self):
@@ -207,7 +207,8 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
         
     def open_shutter(self):
         value=1
-        self.digital_output.WriteDigitalLines(1,
+        for do in self.digital_output:
+            do.WriteDigitalLines(1,
                                     True,
                                     1.0,
                                     DAQmxConstants.DAQmx_Val_GroupByChannel,
@@ -218,7 +219,8 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
         
     def close_shutter(self):
         value=0
-        self.digital_output.WriteDigitalLines(1,
+        for do in self.digital_output:
+            do.WriteDigitalLines(1,
                                     True,
                                     1.0,
                                     DAQmxConstants.DAQmx_Val_GroupByChannel,
@@ -259,8 +261,13 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
         try:
             self.setup_logger()
             self.printl(f'pid: {os.getpid()}')
-            self.digital_output = PyDAQmx.Task()
-            self.digital_output.CreateDOChan(self.kwargs['shutter_port'],'do', DAQmxConstants.DAQmx_Val_ChanPerLine)
+            sp=[self.kwargs['shutter_port']] if isinstance(self.kwargs['shutter_port'],str) else self.kwargs['shutter_port']
+                
+            self.digital_output = []
+            for spi in sp:
+                do=PyDAQmx.Task()
+                do.CreateDOChan(spi,'do', DAQmxConstants.DAQmx_Val_ChanPerLine)
+                self.digital_output.append(do)
             self.create_channels()
             self.running=False
             tlast=time.time()
@@ -431,7 +438,8 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                 time.sleep(0.02)
             self.printl('Process done')
             #Clean up
-            self.digital_output.ClearTask()
+            for do in self.digital_output:
+                do.ClearTask()
             if hasattr(self,  'encoder'):
                 self.encoder.close()
         except:
@@ -462,22 +470,45 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
             self.printl(f'Saved to {tifffn}')
             self.printl('Closing file')
         self.printl(f'Recorded {self.frame_counter} frames, sent {self.ct} frames to GUI, {self.cct} frames saved')
-        if self.zvalues!=[] and self.zvalues is not None:
-            #self.stage.z=self.zvalues[0]
-            self.queues['response'].put('Setting back stage to initial position')
-            self.stage.setz(self.zvalues[0])
-            for i in range(int(self.stage_set_back_timeout/5)):
-                time.sleep(5)
-                ismoving=self.stage.is_moving()
-                if not ismoving:
-                    break
-                else:
-                    self.queues['response'].put('Stage in motion, please wait.')
-            if self.stage.is_moving():
-                self.queues['response'].put('Z stack Done but stage is still in motion')
+        for i in range(5):
+            if self.set_back_z():#Try setting back 5x
+                break
             else:
-                self.queues['response'].put('Z stack Done')
+                self.queues['response'].put('Retrying...')
+        self.queues['response'].put(f'Z stack Done, current position: {self.stage.z}')
         self.running=False
+        
+    def set_back_z(self,  waittime=3):
+        if self.zvalues!=[] and self.zvalues is not None:
+            try:
+                #self.stage.z=self.zvalues[0]
+                self.queues['response'].put(f'Setting back stage to initial position: {self.zvalues[0]}')
+                for i in range(int(self.stage_set_back_timeout/waittime)):
+                    ismoving=self.stage.is_moving()
+                    if not ismoving:
+                        break
+                    self.queues['response'].put(f'still in motion,  {ismoving},  {i}')
+                    time.sleep(waittime)
+                self.stage.set_speed(high= True)
+                self.stage.setz(self.zvalues[0])
+                for i in range(int(self.stage_set_back_timeout/waittime)):
+                    time.sleep(waittime)
+                    ismoving=self.stage.is_moving()
+                    self.queues['response'].put(f'{ismoving},  {i}')
+                    if not ismoving:
+                        break
+                    else:
+                        self.queues['response'].put('Stage in motion, please wait.')
+                zz=self.stage.z
+                self.queues['response'].put(f'Stage at {zz}')
+                self.stage.set_speed(high= False)
+                return self.zvalues[0]==zz
+            except:
+                import traceback
+                self.queues['response'].put(traceback.format_exc())
+                self.stage.set_speed(high= False)
+        else:
+            return True
         
     def set_origin(self):
         self.queues['command'].put(('set_origin',))
@@ -519,12 +550,24 @@ def pmt2undistorted_image(filename, fcut=5e3):
     #Filter xpos signal with butterworth filter
     import scipy.signal
     lowpassfilter=scipy.signal.butter(4, fcut/fsample, btype='low')
+    fcut2=15e3
+    lowpassfilter2=scipy.signal.butter(4, fcut2/fsample, btype='low')
     for fi in range(raw.shape[0]):
         pmt0=raw[fi,0]
         pmt1=raw[fi,1]
         pmt=numpy.array([pmt0,pmt1])
         xpos=raw[fi,2,:]
         xposfilt=scipy.signal.filtfilt(lowpassfilter[0], lowpassfilter[1], xpos).real
+        xposfilt2=scipy.signal.filtfilt(lowpassfilter2[0], lowpassfilter2[1], xpos).real
+        #Calculate shift between filtered and less filtered signal
+        #xposfilt=numpy.roll(xposfilt,11)
+#        from scipy.stats import pearsonr
+#        shifts=numpy.arange(-20, 20, 2)
+#        corrs=[]
+#        for shifti in shifts:
+#            corr, _ = pearsonr(xposfilt, numpy.roll(xposfilt2, shifti))
+#            corrs.append(corr)
+#        corrs[numpy.where(shifts==0)[0][0]]=0
         #y signal would be ignored, since each line is separately extracted
         #Split image to periods by finding peaks
         pos_peaks=scipy.signal.find_peaks(xposfilt)[0]

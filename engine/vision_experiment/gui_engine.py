@@ -632,8 +632,9 @@ class ExperimentHandler(object):
         self.current_experiment_parameters=experiment_parameters
         if 'elphys_waveform' in experiment_parameters and not self.current_experiment_parameters['led_stimulus']:#if self.guidata.read('Enable'):
             self.printc('Start elphys pulses')
-            self.ao, d=daq.set_waveform_start(self.machine_config.ELPHYS_COMMAND_CHANNEL,experiment_parameters['elphys_waveform'][None],self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
-            self.ao_duration=experiment_parameters['elphys_waveform'].shape[0]/self.machine_config.SYNC_RECORDER_SAMPLE_RATE
+            fsample=self.guidata.read('Sample Rate')
+            self.ao, d=daq.set_waveform_start(self.machine_config.ELPHYS_COMMAND_CHANNEL,experiment_parameters['elphys_waveform'][None],fsample)
+            self.ao_duration=experiment_parameters['elphys_waveform'].shape[0]/fsample
             experiment_parameters['duration']=self.ao_duration
             experiment_parameters['stimclass']='Electrical pulses'
             self.ao_termination_time=time.time()+self.ao_duration+5
