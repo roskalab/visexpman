@@ -623,20 +623,21 @@ class MultiListParameterItem(ListParameterItem):
         w.setValue = self.setValue
         self.widget = w  ## needs to be set before limits are changed
         self.limitsChanged(self.param, self.param.opts['limits'])
-        if len(self.forward) > 0:
-            self.setValue(self.param.value())
         return w
     
-    def value(self):       
+    def value(self):
         return self.widget.currentData()
-
 
     def setValue(self, val):
         self.targetValue = val
-        self.widget.lineEdit().setText(' '.join(self.widget.currentData()))
+        self.widget.checkItems(val)
+        self.widget.updateText()
 
 class MultiListParameter(ListParameter):
     itemClass = MultiListParameterItem
+        
+    def setLimits(self, limits):
+        pass
 
 registerParameterType('multilist', MultiListParameter, override=True)
 

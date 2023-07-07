@@ -103,6 +103,13 @@ class CheckableComboBox(QComboBox):
             except (TypeError, IndexError):
                 data = None
             self.addItem(text, data)
+            
+    def checkItems(self, texts):
+        for i in range(self.model().rowCount()):
+            if self.model().item(i).text() in texts:
+                self.model().item(i).setCheckState(Qt.Checked)  
+            else:
+                self.model().item(i).setCheckState(Qt.Unchecked)            
 
     def currentData(self):
         # Return the list of selected items data
