@@ -30,12 +30,12 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         gui.VisexpmanMainWindow.__init__(self, context)
         self.setWindowIcon(gui.get_icon('main_ui'))
         self._init_variables()
-        self._init_hardware()
+        #self._init_hardware()
         self.resize(self.machine_config.GUI_WIDTH, self.machine_config.GUI_HEIGHT)
         self.setGeometry(self.machine_config.GUI_POSITION[0], self.machine_config.GUI_POSITION[1], self.machine_config.GUI_WIDTH, self.machine_config.GUI_HEIGHT)
         self._set_window_title()
         
-        toolbar_buttons = ['start', 'stop', 'record', 'snap', 'select_data_folder', 'zoom_in', 'zoom_out', 'open', 'save_image', 'z_stack', 'read_z', 'set_origin', 'process','exit']
+        toolbar_buttons = ['start', 'stop', 'record', 'snap', 'select_data_folder', 'zoom_in', 'zoom_out', 'open', 'save_image', 'z_stack', 'read_z', 'set_origin', 'process','homing','exit']
         self.toolbar = gui.ToolBar(self, toolbar_buttons)
         self.addToolBar(self.toolbar)
         
@@ -108,9 +108,10 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 context_stream = numpy.load(self.context_filename)
                 self.settings = utils.array2object(context_stream)
             except:#Context file was probably broken
-                self.parameter_changed(ignore_waveplates=True)
+                self.parameter_changed()
         else:
-            self.parameter_changed(ignore_waveplates=True)
+            self.parameter_changed()
+        self._init_hardware()
         if self.settings['params/Live IR']:
             self.printc('Autostart IR camera')
             self.camera.start_()
@@ -229,6 +230,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                     {'name': 'Enable Projector', 'type': 'bool', 'value': True},
                     {'name': 'Projector Control Pulse Width', 'type': 'float', 'value': 10*self.shortest_sample*1e6, 'step': self.shortest_sample*1e6, 'siPrefix': False, 'suffix': ' us'}, 
                     {'name': 'Projector Control Phase', 'type': 'float', 'value': 0, 'step': self.shortest_sample*1e6, 'siPrefix': False, 'suffix': ' us'},
+                    {'name': 'Objective magnification', 'type': 'list', 'value': '20x', 'values': [ '20x', '40x']},
                     {'name': 'X Return Time', 'type': 'float', 'value': 20,  'suffix': ' %'},
                     {'name': 'Y Return Time', 'type': 'float', 'value': 2,  'suffix': ' lines'},
                     {'name': 'File Format', 'type': 'list', 'value': '.hdf5',  'values': file_formats},
@@ -236,8 +238,22 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                     {'name': 'Enable scanners', 'type': 'list', 'value': 'both',  'values': ['both', 'X', 'Y', 'None']},
                     {'name': 'X scanner voltage', 'type': 'float', 'value': 0,  'suffix': ' V'},
                     {'name': 'Y scanner voltage', 'type': 'float', 'value': 0,  'suffix': ' V'},
+                    {'name': 'Red laser enable', 'type': 'bool', 'value': True},
+                    {'name': 'Green laser enable', 'type': 'bool', 'value': True},
                 ]}, 
             ]
+            
+        
+        if self.machine_config.WAVEPLATE_ENABLED == False:
+            for param in self.params_config:
+                if param['name'] == 'Red Laser Intensity':
+                    self.params_config.remove(param)
+                    break
+            for param in self.params_config:
+                if param['name'] == 'Green Laser Intensity':
+                    self.params_config.remove(param)
+                    break
+         
         self.params_config.extend(params)
         self.twop_running=False
         self.camera_running=False
@@ -246,8 +262,9 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.image_update_in_progress=False
         self.data_folder=self.machine_config.EXPERIMENT_DATA_PATH
         self.nframes_recording_running=False
+        self.homing_requested=False
     
-    def parameter_changed(self, ignore_waveplates=not False):
+    def parameter_changed(self):
         if(self.z_stack_running):
             self.printc("Cannot change parameters while Z stacking is running.")
             return
@@ -297,13 +314,20 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 newparams['params/Resolution']!=self.settings['params/Resolution']:
                     self.printc("2p img settings changed")
             
-            if not ignore_waveplates:
+
+            if self.homing_requested:
                 if newparams['params/Red Laser Intensity'] != self.settings['params/Red Laser Intensity']:#!!!!!
-                    self.printc('Changing red laser intensity')
-                    self.redlaser.set_position(newparams['params/Red Laser Intensity'])
+                    if self.redlaser.homed:
+                        self.printc('Changing red laser intensity')
+                        self.redlaser.set_position(newparams['params/Red Laser Intensity'])
+                    else:
+                        QtWidgets.QMessageBox.question(self, 'Warning', 'Red laser is not homed! Intensity will not change!', QtWidgets.QMessageBox.Ok)
                 if newparams['params/Green Laser Intensity'] != self.settings['params/Green Laser Intensity']:#!!!!!
-                    self.printc('Changing green laser intensity')
-                    self.greenlaser.set_position(newparams['params/Green Laser Intensity'])
+                    if self.greenlaser.homed:
+                        self.printc('Changing green laser intensity')
+                        self.greenlaser.set_position(newparams['params/Green Laser Intensity'])
+                    else:
+                        QtWidgets.QMessageBox.question(self, 'Warning', 'Green laser is not homed! Intensity will not change!', QtWidgets.QMessageBox.Ok)
 
             
             #IR Zoom
@@ -341,9 +365,11 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
 
     def _init_hardware(self):
         self.daq_logfile=self.logger.filename.replace('2p', '2p_daq')
-        if self.machine_config.ENABLE_PMT_TRIPPING_DETECTION:
+        
+        if self.machine_config.PMT_TRIPPING_DETECTION_ENABLED == True:
             self.pmttripping_logfile=self.logger.filename.replace('2p', '2p_pmttripping')
-            self.pmt = pmt_tripping.PMTTripping(self.pmttripping_logfile, 'zoltan@raics.hu')
+            self.pmt = pmt_tripping.PMTTripping(self.pmttripping_logfile, self.machine_config.PMT_TRIPPING_EMAIL)
+        
         self.start_aio()
         self.cam_logfile=self.logger.filename.replace('2p', '2p_cam')
         self.camera=camera.ThorlabsCameraProcess(self.machine_config.THORLABS_CAMERA_DLL,
@@ -351,16 +377,12 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                                 self.machine_config.IR_CAMERA_ROI)
         self.camera.start()
         
-        if self.machine_config.ENABLE_WAVEPLATE:
+        if hasattr(self.machine_config, 'RR1_SERVO_ID') and hasattr(self.machine_config, 'GR1_SERVO_ID'):
             servoconfig = {'SERVOCONF': {'RR1_servo_ID':  self.machine_config.RR1_SERVO_ID, 'GR1_servo_ID': self.machine_config.GR1_SERVO_ID}}
             self.redlaser_logfile=self.logger.filename.replace('2p', '2p_redlaser')
             self.redlaser = wave_plate.WavePlate('RR1', self.redlaser_logfile, servoconfig, self.machine_config.RR1_INTERPOLATION)  
             self.greenlaser_logfile=self.logger.filename.replace('2p', '2p_greenlaser')
             self.greenlaser = wave_plate.WavePlate('GR1', self.greenlaser_logfile, servoconfig, self.machine_config.GR1_INTERPOLATION)
-        if self.machine_config.ENABLE_PMT_TRIPPING_DETECTION:
-            self.pmttripping_logfile=self.logger.filename.replace('2p', '2p_pmttripping')
-            self.pmt = pmt_tripping.PMTTripping(self.pmttripping_logfile, 'zoltan@raics.hu')
-        
         
         if not self.machine_config.STAGE_IN_SCANNER_PROCESS:
             try:
@@ -374,7 +396,13 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.camera.terminate()
         
     def start_aio(self):
-        self.waveform_generator=scanner_control.ScannerWaveform(machine_config=self.machine_config)
+        if self.settings['params/Advanced/Objective magnification']=='20x':
+            self.magnification=self.machine_config.SCAN_VOLTAGE_UM_FACTOR_20X
+        elif self.settings['params/Advanced/Objective magnification']=='40x':
+            self.magnification=self.machine_config.SCAN_VOLTAGE_UM_FACTOR_40X
+        else:
+            self.magnification=self.machine_config.SCAN_VOLTAGE_UM_FACTOR
+        self.waveform_generator=scanner_control.ScannerWaveform(machine_config=self.machine_config, magnification=self.magnification)
         if self.machine_config.STAGE_IN_SCANNER_PROCESS:
             if hasattr(self.machine_config, 'AO_CHANNELS2'):
                 print(self.machine_config.STAGE_IN_SCANNER_PROCESS,self.machine_config.AO_CHANNELS2)
@@ -397,8 +425,12 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                                                                         ao_sample_rate=self.machine_config.AO_SAMPLE_RATE,
                                                                         shutter_port=self.machine_config.SHUTTER_PORT, 
                                                                         stage_port=self.machine_config.STAGE_PORT, 
-                                                                        stage_baudrate=self.machine_config.STAGE_BAUDRATE)
+                                                                        stage_baudrate=self.machine_config.STAGE_BAUDRATE,                                                                        
+                                                                        encoder_channel=self.machine_config.ENCODER_CHANNEL,
+                                                                        green_laser_enable=self.settings['params/Advanced/Green laser enable'],
+                                                                        red_laser_enable=self.settings['params/Advanced/Red laser enable'])
         else:
+            #OBSOLETE branch?
             self.aio=scanner_control.SyncAnalogIORecorder(self.machine_config.AI_CHANNELS,
                                                                         self.machine_config.AO_CHANNELS,
                                                                         self.daq_logfile,
@@ -411,7 +443,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         p = psutil.Process(self.aio.pid)
         p.nice(psutil.REALTIME_PRIORITY_CLASS)
         
-        if hasattr(self, 'pmt') and self.pmt.has_tripped() == True:
+        if self.machine_config.PMT_TRIPPING_DETECTION_ENABLED == True and self.pmt.has_tripped() == True and self.disable_timelapse == False:
             self.pmt.handle_tripping()
         
     def restart_aio(self):
@@ -553,14 +585,14 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 if dt>3600 and self.twop_running:
                     self.printc(f'2p timeout {dt}, {self.twop_running}')
                     self.stop_action()
-                self.parameter_changed(ignore_waveplates=True)
+                self.parameter_changed()
                 if (dt==0 or dt>self.settings['params/Time lapse/Interval']) and not self.twop_running:
                     import psutil
                     self.printc(f'Debug: {psutil.virtual_memory().percent}% memory usage')
                     self.restart_aio()
                     self.z_stack_action()
                     self.last_scan=now
-                    self.parameter_changed(ignore_waveplates=True)
+                    self.parameter_changed()
         except:
             self.printc('Error happened during time lapse:', popup_error=False)
             self.printc(traceback.format_exc(), popup_error=False)
@@ -1215,6 +1247,16 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         else:
             self.data_folder=df
             
+    def homing_action(self):                
+        self.redlaser.home_motors()
+        self.greenlaser.home_motors()
+        self.homing_requested=True
+        self.printc('Homing done, adjusting rotors, please wait')
+        QtCore.QCoreApplication.instance().processEvents()
+        self.parameter_changed()
+        self.printc('Done')
+        
+            
     def process_action(self):
         if self.settings['params/Time lapse/Enable']:
             self.printl('Stop timelapse first!')
@@ -1258,7 +1300,6 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                     continue
                 else:
                     self.zstack, zvalues, distorted=res
-                print(self.zstack.shape, files[i])
                 self.zstacks.append(self.zstack)
                 self.distorted_s.append(distorted)
                 ds=os.path.splitext(os.path.basename(files[i]))[0].split('_')[-1]
@@ -1270,7 +1311,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             self.statusbar.progressbar.setValue(i+1)
             QtCore.QCoreApplication.instance().processEvents()
         self.timelapse_timepoints.sort()
-        self.zstacks=numpy.array(self.zstacks)
+        self.minshape=numpy.array([z.shape for z in self.zstacks]).min(axis=0)
+        self.zstacks=numpy.array([z[:self.minshape[0], :self.minshape[1], :self.minshape[2], :self.minshape[3]] for z in self.zstacks])
         self.zstacks=numpy.cast['float32'](self.zstacks.mean(axis=2))#Average same depths
         #Merge all files to one big datafile
         #Save self.timelapse_timepoints to file
@@ -1280,7 +1322,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         dtag='distorted' if any(self.distorted_s) else ''
         fn=os.path.join(df, os.path.basename(df)+f'_{dtag}_merged_timelapse.tiff')
         self.printc(self.zstacks.dtype)
-        tifffile.imwrite(fn, self.zstacks, imagej=True)
+        tifffile.imwrite(fn, numpy.rollaxis(self.zstacks,0,2), imagej=True)
         attributes_txt=''.join(attributes_txt)
         tstxt=','.join(list(map(str, self.timelapse_timepoints)))
         metadata=f'timestamps={tstxt}\r\n{attributes_txt}'

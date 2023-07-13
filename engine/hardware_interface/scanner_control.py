@@ -37,12 +37,13 @@ class ScannerWaveform(object):
             self.fsample=machine_config.AO_SAMPLE_RATE
         else:
             self.fsample=kwargs['fsample']
-        for pn in ['SCAN_VOLTAGE_UM_FACTOR',  'PROJECTOR_CONTROL_VOLTAGE', 'FRAME_TIMING_PULSE_WIDTH']:
+        for pn in ['PROJECTOR_CONTROL_VOLTAGE', 'FRAME_TIMING_PULSE_WIDTH']:
             if hasattr(machine_config, pn):
                 setattr(self,  pn.lower(), getattr(machine_config, pn))
             else:
                 setattr(self,  pn.lower(), kwargs[pn.lower()])
-            
+        self.scan_voltage_um_factor=kwargs['magnification']  
+ 
     def generate(self,  height, width, resolution, xflyback, yflyback=2, pulse_width=0, pulse_phase=0):
         '''
         Generates x, y scanner waveforms, timing signal for projector and imaging frame timing pulses.
@@ -206,8 +207,12 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
             return self.queues['rawimage'].get()
         
     def open_shutter(self):
-        value=1
-        for do in self.digital_output:
+        for i in range(len(self.digital_output)):
+            if i==0:
+                value = self.kwargs['green_laser_enable']
+            if i==1:
+                value = self.kwargs['red_laser_enable']
+            do = self.digital_output[i]    
             do.WriteDigitalLines(1,
                                     True,
                                     1.0,
@@ -294,6 +299,8 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                         self.offset=cmd[4]
                         self.nframes=cmd[5]
                         self.zvalues=cmd[6]
+                        if self.zvalues is not None and len(self.zvalues)>0:
+                            self.set_back_z()#Ensure that z position is set to initial position
                         if self.nframes is None and self.zvalues is not None:
                             self.nframes=len(self.zvalues)+NFRAMES_SKIP_AT_SCANNING_START
                         elif self.nframes is not None and self.zvalues is None:

@@ -15,6 +15,14 @@ class WavePlate(object):
         
         logging.basicConfig(format='%(asctime)s %(levelname)s\t%(message)s', level=logging.INFO, handlers=[logging.FileHandler(self.logfile), logging.StreamHandler()])
         self.homed=False       
+        
+        devicelist = Thorlabs.list_kinesis_devices()
+        if len([device for device in devicelist if device[0] == self.config['SERVOCONF'][self.param_name]]):
+            #servo motor ID is in the list of connected devices
+            motor = Thorlabs.KinesisMotor(self.config['SERVOCONF'][self.param_name], scale='stage')
+            status = motor.get_status()
+            logging.info(status)
+            self.homed = motor.is_homed()
 
     def home_motors(self):
         if self.homed: return
