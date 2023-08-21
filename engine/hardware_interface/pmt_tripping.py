@@ -38,6 +38,10 @@ class PMTTripping(object):
         utils.sendmail(self.notif_email, 'PMT tripping', 'PMT tripping has been detected')
         try:
             self.inst.query("SENSe:CURRent:DC:PROTection:CLEar") #clear tripping signal
+            self.inst.query("SENSe:FUNCtion:OFF") #turn PMT power off
+            import time
+            time.sleep(5)
+            self.inst.query("SENSe:FUNCtion:ON") #turn PMT power on
            
         except pyvisa.VisaIOError:
             logging.error("VisaIOError exception")
