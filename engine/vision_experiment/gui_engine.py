@@ -100,7 +100,7 @@ class ExperimentHandler(object):
         self.santiago_setup='santiago' in self.machine_config.__class__.__name__.lower()
         self.dataroot=self.guidata.read("Data Root")
         if self.dataroot is None:
-            if self.machine_config.user=='common':
+            if self.machine_config.user=='common' or not self.machine_config.ENABLE_USER_FOLDER:
                 self.dataroot=self.machine_config.EXPERIMENT_DATA_PATH
             else:#Multiple users
                 self.dataroot=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, self.machine_config.user)

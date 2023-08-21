@@ -239,6 +239,8 @@ def mkdir_notexists(folder, remove_if_exists=False):
     if not isinstance(folder, list):
         folder = [folder]
     for f in folder:
+        if not os.path.isdir(f) and len(os.path.splitext(f)[1])>0:
+            f=os.path.dirname(f)
         if remove_if_exists and os.path.exists(f):
             shutil.rmtree(f)
         if not os.path.exists(f):
@@ -351,7 +353,9 @@ def find_files_and_folders(start_path,  extension = None, filter = None):
         return directories, all_files
         
 def find_files(start_path,extension=None):
-    return find_files_and_folders(start_path, extension=extension)[1]
+    files=find_files_and_folders(start_path, extension=extension)[1]
+    files.sort()
+    return files
 
 def filtered_file_list(folder_name,  filter, fullpath = False, inverted_filter = False, filter_condition = None):
     import numpy

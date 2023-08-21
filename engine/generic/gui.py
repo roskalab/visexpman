@@ -785,7 +785,7 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
             for linear_region in self.linear_regions:
                 self.plot.removeItem(linear_region)
         self.linear_regions=[]
-        for i in range(len(boundaries)/2):
+        for i in range(len(boundaries)//2):
             self.linear_regions.append(pyqtgraph.LinearRegionItem(boundaries[2*i:2*(i+1)], movable=False, brush = color))
             self.plot.addItem(self.linear_regions[-1])
         
