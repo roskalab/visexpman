@@ -671,6 +671,17 @@ class ExperimentHandler(object):
             self.to_gui.put({'update_status':'stimulus only'})
         else:
             self.to_gui.put({'update_status':'recording'})
+            
+    def force_waveform_generator_stop(self):
+        if hasattr(self,  'ao'):
+            try:
+                daq.set_waveform_finish(self.ao, 3,wait=True)
+            except:
+                pass
+            self.printc('Waveform generator terminated')
+            del self.ao
+            del self.ao_termination_time
+            daq.set_voltage(self.machine_config.ELPHYS_COMMAND_CHANNEL+':1', 0)
         
     def finish_experiment(self):
         if not self.experiment_running:
@@ -758,11 +769,13 @@ class ExperimentHandler(object):
             if hasattr(self, 'sync_recorder'):
                 self._stop_sync_recorder()
             if self.guidata.read('Enable Psychotoolbox') or hasattr(self,  'ao'):
-                if hasattr(self,  'ao'):
-                    daq.set_waveform_finish(self.ao, 3,wait=True)
-                    self.printc('Waveform generator terminated')
-                    del self.ao
-                    del self.ao_termination_time
+                self.force_waveform_generator_stop()
+#                if hasattr(self,  'ao'):
+#                    daq.set_waveform_finish(self.ao, 3,wait=True)
+#                    self.printc('Waveform generator terminated')
+#                    del self.ao
+#                    del self.ao_termination_time
+#                    daq.set_voltage(self.machine_config.ELPHYS_COMMAND_CHANNEL+':1', 0)
                 self.save_experiment_files()
                 self.experiment_running=False
             if self.guidata.read('Block Projector'):
@@ -902,7 +915,7 @@ class ExperimentHandler(object):
             if self.santiago_setup:
                 #Export timing to csv file
                 self._timing2csv(filename)
-            if self.machine_config.PLATFORM=='elphys' and not aborted and not self.guidata.read('Enable') and not self.guidata.read('Enable Psychotoolbox') and 'ELPHYS_STIMULUS' not in self.stimulus_config and not self.current_experiment_parameters['led_stimulus']:
+            if self.machine_config.PLATFORM=='elphys' and not aborted and not self.guidata.read('Enable') and not self.guidata.read('Enable Psychotoolbox') and 'ELPHYS_STIMULUS' not in self.stimulus_config and not self.current_experiment_parameters['led_stimulus'] and self.machine_config.ENABLE_SYNC!=False:
                 self.hh=experiment_data.CaImagingData(outfile)
                 self.hh.load()
                 self.to_gui.put({'plot_title': os.path.dirname(outfile)+'<br>'+os.path.basename(outfile)})
@@ -2514,6 +2527,8 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
                 import traceback
                 self.printc(traceback.format_exc())
                 self.dump()
+                if hasattr(self,  'force_waveform_generator_stop'):
+                    self.force_waveform_generator_stop()
                 self.close_open_files()
             time.sleep(self.loop_wait)
         self.close()
