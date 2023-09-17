@@ -22,6 +22,12 @@ def is_first_tag(fn, tag):
     '''
     return tag == os.path.split(fn)[1][:len(tag)]
 
+def last_tags(fn,n):
+    return os.sep.join(fn.split(os.sep)[-n:])
+
+def path2outfolder(fn,outfolder,extension=''):
+    return os.path.join(outfolder,fileop.replace_extension(os.path.basename(fn), extension))
+
 def generate_filename(path, insert_timestamp = False, last_tag = ''):
     '''
     Inserts index into filename resulting unique name.
