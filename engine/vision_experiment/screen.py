@@ -111,8 +111,8 @@ class StimulationScreen(graphics.Screen):
             screen_resolutions=graphics.get_screens_info()
             if len(screen_resolutions)>1:
                 raise RuntimeError("More than one display is attached")
-            if screen_resolutions[0][0]!=int(self.config.SCREEN_RESOLUTION['col']) or screen_resolutions[0][1]!=int(self.config.SCREEN_RESOLUTION['row']):
-                raise RuntimeError(f"Incorrect resolution set, displayed stimulus might be distorted. Expected: {self.config.SCREEN_RESOLUTION} found: {screen_resolutions[0]}")
+            if screen_resolutions[0][0]!=self.config.SCREEN_RESOLUTION['col'] or screen_resolutions[0][1]!=self.config.SCREEN_RESOLUTION['row']:
+                raise RuntimeError(f"Incorrect resolution set, displayed stimulus might be distorted. Expected: {self.config.SCREEN_RESOLUTION} found: {screen_resolutions[0]}]")
         graphics.Screen.__init__(self, self.config, graphics_mode = 'external')
         self.clear_screen()
         #== Initialize displaying text ==

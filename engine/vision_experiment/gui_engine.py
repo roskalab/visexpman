@@ -29,7 +29,7 @@ from visexpman.engine.generic import fileop, signal,stringop,utils,introspect,vi
 from visexpman.applications.visexpman_main import stimulation_tester
 
 #Define the maximum load threshold
-
+MAX_LOAD = {"cpu" : 80, "ram" : 90, "net_sent" : 5000, "net_recv" : 5000 }
 
 class GUIDataItem(object):
     def __init__(self,name,value,path):
@@ -283,10 +283,12 @@ class ExperimentHandler(object):
             oh=wt+self.machine_config.MES_RECORD_OVERHEAD
             experiment_parameters['mes_record_time']=int(1000*(experiment_parameters['duration']+oh))
         elif self.machine_config.PLATFORM=='elphys':
+            if self.guidata.read('Enable Psychotoolbox') and self.guidata.read('Enable'):
+                raise NotImplementedError('Psychotoolbox stimulation and elphys waveform generation is not possible at the same time')
             if self.guidata.read('Enable'):
                 mode=self.guidata.read('Clamp Mode')
                 #Generate waveform
-                fsample=self.guidata.read('Sample Rate')
+                fsample=self.guidata.read('Sample Rate') #self.machine_config.SYNC_RECORDER_SAMPLE_RATE
                 scale=self.guidata.read('Current Command Sensitivity') if mode=='Current Clamp' else self.guidata.read('Voltage Command Sensitivity')
                 if self.guidata.read('Protocol')=='Pulse train' or self.guidata.read('Protocol')=='Pulse train steps':
                     #Generate elphys stimulus based on Settings
@@ -321,11 +323,12 @@ class ExperimentHandler(object):
                         epochs.append(pulses[i]/scale*1e3)#Command signal: nA or V input
                         epochs.append(numpy.zeros(int(fsample*self.guidata.read('Wait time')*1e-3)))
                     experiment_parameters['elphys_waveform']=numpy.concatenate(epochs)
+                    
+            
 #            sensitivity=self.guidata.read(mode.split()[0]+' Command Sensitivity')
 #            command=self.guidata.read('Clamp '+mode.split()[0])
 #            experiment_parameters['Command Voltage']=command/sensitivity
-
-            experiment_parameters['Sample Rate']=self.guidata.read('Sample Rate')
+            experiment_parameters['Recording Sample Rate']=self.guidata.read('Recording Sample Rate')
             experiment_parameters['Current Gain']=self.guidata.read('Current Gain')
             experiment_parameters['Voltage Gain']=self.guidata.read('Voltage Gain')
             experiment_parameters['Current Command Sensitivity']=self.guidata.read('Current Command Sensitivity')
@@ -347,8 +350,8 @@ class ExperimentHandler(object):
         if hasattr(self, 'trigger_filename') and self.trigger_filename!=None:
             experiment_parameters['trigger_filename']=self.trigger_filename
             experiment_parameters['trigger_timestamp']=os.path.getctime(self.trigger_filename)
-        if not(self.machine_config.PLATFORM=='elphys'):
-            experiment_parameters['Sample Rate'] = self.machine_config.SYNC_RECORDER_SAMPLE_RATE
+        # if not(self.machine_config.PLATFORM=='elphys'):
+        #   experiment_parameters['Sample Rate'] = self.machine_config.SYNC_RECORDER_SAMPLE_RATE
         return experiment_parameters
             
     def start_batch_experiment(self):
@@ -554,7 +557,7 @@ class ExperimentHandler(object):
         print("Checking the load on the resources...")
         avg_load = utils.load_estimator()
         print(avg_load)
-        if (avg_load["cpu"] > self.machine_config.MAX_LOAD["cpu"] or avg_load["ram"] > self.machine_config.MAX_LOAD["ram"] or avg_load["net_sent"] > self.machine_config.MAX_LOAD["net_sent"] or avg_load["net_recv"] > self.machine_config.MAX_LOAD["net_recv"]):
+        if platform.system()!='Darwin' and ((avg_load["cpu"] > MAX_LOAD["cpu"] or avg_load["ram"] > MAX_LOAD["ram"] or avg_load["net_sent"] > MAX_LOAD["net_sent"] or avg_load["net_recv"] > MAX_LOAD["net_recv"])):
             self.notify('Warning', 'The Load on the resources are too high, can not start the experiment')
             return
         
@@ -574,7 +577,7 @@ class ExperimentHandler(object):
             nchannels=nchannels[1]-nchannels[0]+1
             self.daqdatafile=fileop.DataAcquisitionFile(nchannels,'sync',None)
             #Start sync signal recording
-            self.sample_rate = experiment_parameters['Sample Rate']
+            self.sample_rate=self.guidata.read('Sample Rate') if self.guidata.read('Enable') else self.machine_config.SYNC_RECORDER_SAMPLE_RATE
             d=self.sync_recorder.read_ai()#Empty ai buffer
             self.sync_recorder.start_daq(ai_sample_rate = self.sample_rate,
                                 ai_record_time=self.machine_config.SYNC_RECORDING_BUFFER_TIME, timeout = 10) 
@@ -617,14 +620,23 @@ class ExperimentHandler(object):
         else:
             if 'Record Eyecamera' in experiment_parameters and experiment_parameters['Record Eyecamera']:
                 self.send({'function': 'start_recording','args':[experiment_parameters]},'cam')
-                time.sleep(self.machine_config.CAMERA_PRETRIGGER_TIME)                
+                time.sleep(self.machine_config.CAMERA_PRETRIGGER_TIME)
+            if self.guidata.read('Enable Psychotoolbox'):
+                self.printc('Trigger PTB, if fails, restart GUI!')
+                self.zmq_resp=utils.send_zmq(self.machine_config.CONNECTIONS['stim']['ip']['stim'],self.machine_config.PTB_ZMQ_PORT,'start',wait=1)
+                self.printc(self.zmq_resp)
+                if 'No response' in self.zmq_resp:
+                    self._stop_sync_recorder()
+                    return
+                
             elif self.machine_config.PLATFORM not in ['erg'] and 'elphys_waveform' not in experiment_parameters and 'ELPHYS_STIMULUS' not in self.stimulus_config and not experiment_parameters['led_stimulus']:
                 self.send({'function': 'start_stimulus','args':[experiment_parameters]},'stim')
         self.current_experiment_parameters=experiment_parameters
         if 'elphys_waveform' in experiment_parameters and not self.current_experiment_parameters['led_stimulus']:#if self.guidata.read('Enable'):
             self.printc('Start elphys pulses')
-            self.ao, d=daq.set_waveform_start(self.machine_config.ELPHYS_COMMAND_CHANNEL,experiment_parameters['elphys_waveform'][None],self.current_experiment_parameters['Sample Rate'])
-            self.ao_duration=experiment_parameters['elphys_waveform'].shape[0]/self.current_experiment_parameters['Sample Rate']
+            fsample=self.guidata.read('Sample Rate')
+            self.ao, d=daq.set_waveform_start(self.machine_config.ELPHYS_COMMAND_CHANNEL,experiment_parameters['elphys_waveform'][None],fsample)
+            self.ao_duration=experiment_parameters['elphys_waveform'].shape[0]/fsample
             experiment_parameters['duration']=self.ao_duration
             experiment_parameters['stimclass']='Electrical pulses'
             self.ao_termination_time=time.time()+self.ao_duration+5
@@ -640,8 +652,8 @@ class ExperimentHandler(object):
                 
                 
             self.wf=wf
-            self.ao, d=daq.set_waveform_start(self.machine_config.ELPHYS_COMMAND_CHANNEL+':1',wf,self.current_experiment_parameters['Sample Rate'])
-            self.ao_duration=self.stimulus_config['WAVEFORM'].shape[1]/self.current_experiment_parameters['Sample Rate']
+            self.ao, d=daq.set_waveform_start(self.machine_config.ELPHYS_COMMAND_CHANNEL+':1',wf,self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
+            self.ao_duration=self.stimulus_config['WAVEFORM'].shape[1]/self.machine_config.SYNC_RECORDER_SAMPLE_RATE
             experiment_parameters['duration']=self.ao_duration
             experiment_parameters['led waveform']=self.stimulus_config['WAVEFORM']
             self.ao_termination_time=time.time()+self.ao_duration+5
@@ -758,11 +770,14 @@ class ExperimentHandler(object):
         if self.machine_config.PLATFORM in ['elphys']:
             if hasattr(self, 'sync_recorder'):
                 self._stop_sync_recorder()
-            if hasattr(self,  'ao'):
-                daq.set_waveform_finish(self.ao, 3,wait=True)
-                self.printc('Waveform generator terminated')
-                del self.ao
-                del self.ao_termination_time
+            if self.guidata.read('Enable Psychotoolbox') or hasattr(self,  'ao'):
+                self.force_waveform_generator_stop()
+#                if hasattr(self,  'ao'):
+#                    daq.set_waveform_finish(self.ao, 3,wait=True)
+#                    self.printc('Waveform generator terminated')
+#                    del self.ao
+#                    del self.ao_termination_time
+#                    daq.set_voltage(self.machine_config.ELPHYS_COMMAND_CHANNEL+':1', 0)
                 self.save_experiment_files()
                 self.experiment_running=False
             if self.guidata.read('Block Projector'):
@@ -806,7 +821,7 @@ class ExperimentHandler(object):
                 if not os.path.exists(os.path.dirname(fn)):
                     time.sleep(0.1)
                 #Here comes merging datafiles if stim computer is available
-                if self.guidata.read('Enable')  or self.current_experiment_parameters['led_stimulus'] :
+                if self.guidata.read('Enable Psychotoolbox') or self.guidata.read('Enable')  or self.current_experiment_parameters['led_stimulus'] :
                     fn=self.current_experiment_parameters['outfilename']
                     shutil.copy(self.daqdatafile.filename,fn)
                     self.printc('Sync data saved to {0}'.format(fn))
@@ -902,7 +917,7 @@ class ExperimentHandler(object):
             if self.santiago_setup:
                 #Export timing to csv file
                 self._timing2csv(filename)
-            if self.machine_config.PLATFORM=='elphys' and not aborted and not self.guidata.read('Enable') and 'ELPHYS_STIMULUS' not in self.stimulus_config and not self.current_experiment_parameters['led_stimulus']:
+            if self.machine_config.PLATFORM=='elphys' and not aborted and not self.guidata.read('Enable') and not self.guidata.read('Enable Psychotoolbox') and 'ELPHYS_STIMULUS' not in self.stimulus_config and not self.current_experiment_parameters['led_stimulus'] and self.machine_config.ENABLE_SYNC!=False:
                 self.hh=experiment_data.CaImagingData(outfile)
                 self.hh.load()
                 self.to_gui.put({'plot_title': os.path.dirname(outfile)+'<br>'+os.path.basename(outfile)})
@@ -1045,13 +1060,13 @@ class ExperimentHandler(object):
         
     def read_sync_recorder(self):
         self.syncreadout=copy.deepcopy(self.sync_recorder.read_ai())
-        if not hasattr(self,  "current_experiment_parameters"):
-            self.printc("RSR: Could not find any experiment parameters! Using the machine_config parameters.")
-            sample_rate = self.machine_config.SYNC_RECORDER_SAMPLE_RATE
-        else: 
-            sample_rate = self.current_experiment_parameters['Sample Rate']
+        #if not hasattr(self,  "current_experiment_parameters"):
+        #   self.printc("RSR: Could not find any experiment parameters! Using the machine_config parameters.")
+        #    sample_rate = self.machine_config.SYNC_RECORDER_SAMPLE_RATE
+        #else: 
+        #    sample_rate = self.current_experiment_parameters['Sample Rate']
         if hasattr(self.syncreadout,  "dtype"):
-            maxnsamples=int(sample_rate*self.machine_config.LIVE_SIGNAL_LENGTH)#max 5 minutes
+            maxnsamples=int(self.machine_config.SYNC_RECORDER_SAMPLE_RATE*self.machine_config.LIVE_SIGNAL_LENGTH)#max 5 minutes
             if self.live_data.shape[0]>maxnsamples:
                 self.live_data=self.live_data[-maxnsamples:,:]
             self.live_data=numpy.concatenate((self.live_data,self.syncreadout))
@@ -1059,6 +1074,14 @@ class ExperimentHandler(object):
             if self.live_data.shape[0]>0:
                 self._plot_elphys(self.live_data)
             self.daqdatafile.add(self.syncreadout)
+            if self.guidata.read('Enable Psychotoolbox'):
+                #Check  for stop condition
+                nsamples=self.machine_config.SYNC_RECORDER_SAMPLE_RATE*20#Check last 10 seconds
+                if self.live_data.shape[0]>nsamples:
+                    buffer=self.live_data[-nsamples:, self.machine_config.TFRAME_FLIP_SYNC_INDEX]
+                    self.printc(f'Frame flip max: {round(buffer.max())} V')
+                    if buffer.max()<1.0:#No frame flip signals
+                        self.finish_experiment()
             
     def _stop_sync_recorder(self):
         if self.sync_recording_started:
@@ -1362,21 +1385,14 @@ class Analysis(object):
         else:
             self.to_gui.put({'plot_title': os.path.dirname(self.filename)+'<br>'+os.path.basename(self.filename)})
             sync=self.datafile.findvar("sync")
-            self.printc(f"\nSync shape: {sync.shape}\n")
-            if not hasattr(self, 'current_experiment_parameters'):
-                self.printc("Phrasing experiment parameters")
-                self.current_experiment_parameters = self.datafile.findvar("parameters")
-            else:
-                self.printc("Rephrasing experiment parameters")
-                self.current_experiment_parameters = self.datafile.findvar("parameters")
+            if not hasattr(self, 'experiment_parameters_from_file'):
+                self.experiment_parameters_from_file = self.datafile.findvar("parameters")
             if not hasattr(self, 'sample_rate'):
-                if self.machine_config.PLATFORM=='elphys':
-                    self.sample_rate = self.current_experiment_parameters['Sample Rate']
-                    self.printc("Sample Rate from experiment parameters")
-                else:
-                    self.sample_rate = self.machine_config.SYNC_RECORDER_SAMPLE_RATE
-                    self.printc("Sample Rate from machine_config")
+                self.sample_rate=self.guidata.read('Sample Rate')
+                self.printc('Warning: sample rate must be read from datafile!!!!')
             self._plot_elphys(sync,  full_view=True, from_file=True)
+            if not hasattr(self, 'experiment_parameters_from_file'):
+                del self.experiment_parameters_from_file
         if self.machine_config.PLATFORM not in  ['resonant',  "elphys", 'erg']:#Do not load imaging data
             self.datafile.get_image(image_type=self.guidata.read('3d to 2d Image Function'),motion_correction=self.guidata.read('Motion Correction'))
             self.image_scale=self.datafile.scale
@@ -1435,7 +1451,7 @@ class Analysis(object):
                 self._roi_area2image()
         self.datafile.close()
         self._bouton_analysis()
-        if self.machine_config.PLATFORM in ['elphys'] and 0:
+        if self.machine_config.PLATFORM in ['elphys']:
             try:
                 self.spikes2polar(filename)
             except:
@@ -2565,48 +2581,57 @@ class ElphysEngine():
     def _plot_elphys(self, sync, full_view=False, from_file=False):
         if self.machine_config.PLATFORM in ['erg']:
             return
-        #Filtering is obsolete, removed
-        self.filtered = sync[: ,self.machine_config.ELPHYS_INDEX]
-
+        #Filter rawdata
+        if self.guidata.read('Enable Filter')==True:
+            order=self.guidata.filter_order.v
+            frq=float(self.guidata.cut_frequency.v)
+            if self.guidata.filter_type.v=='lowpass':
+                self.filter=scipy.signal.butter(order,frq/self.sample_rate,'low')
+            else:
+                self.filter=scipy.signal.butter(order,frq/self.sample_rate,'high')
+            self.filtered=scipy.signal.filtfilt(self.filter[0],self.filter[1], sync[:,self.machine_config.ELPHYS_INDEX]).real
+        else:
+            self.filtered=sync[:,self.machine_config.ELPHYS_INDEX]
         if self.guidata.read('Displayed signal length')>0 and not full_view:
             index=-int(self.guidata.read('Displayed signal length')*self.sample_rate)
         else:
             index=0
-        
+        self.iindex=index
         t=numpy.arange(sync.shape[0])/float(self.sample_rate)
-        t=t[index:] #issu ez igy jo?
+        t=t[index:]
         if self.machine_config.PLATFORM=='elphys':
             #if we opened a file and want to see the previos measurment then we have to load the settings from the file not from the gui
-            mode = self.current_experiment_parameters['Clamp Mode'] if from_file else self.guidata.read('Clamp Mode')
+            mode = self.experiment_parameters_from_file['Clamp Mode'] if from_file else self.guidata.read('Clamp Mode')
             #Scale elphys
             if 'Voltage' in mode:
                 unit='membrane current nA, command mV'
                 #if we opened a file and want to see the previos measurment then we have to load the settings from the file not from the gui
-                scale = self.current_experiment_parameters['Current Gain'] if from_file else self.guidata.read('Current Gain')
-                command_scale = self.current_experiment_parameters["Voltage Command Sensitivity"] if from_file else self.guidata.read("Voltage Command Sensitivity")
+                scale = self.experiment_parameters_from_file['Current Gain'] if from_file else self.guidata.read('Current Gain')
+                command_scale = self.experiment_parameters_from_file["Voltage Command Sensitivity"] if from_file else self.guidata.read("Voltage Command Sensitivity")
             elif 'Current' in mode:
                 unit='membrane voltage mV, command: pA'
                 #if we opened a file and want to see the previos measurment then we have to load the units from the file not from the gui
-                scale = (self.current_experiment_parameters['Voltage Gain']/1e3) if from_file else (self.guidata.read('Voltage Gain')/1e3)
-                command_scale = (self.current_experiment_parameters["Current Command Sensitivity"]*1e-3) if from_file else self.guidata.read("Current Command Sensitivity")*1e-3 
+                scale = (self.experiment_parameters_from_file['Voltage Gain']/1e3) if from_file else (self.guidata.read('Voltage Gain')/1e3)
+                command_scale = (self.experiment_parameters_from_file["Current Command Sensitivity"]*1e-3) if from_file else self.guidata.read("Current Command Sensitivity")*1e-3 
             fn= self.filename if hasattr(self, 'filename') else str(self.current_experiment_parameters['stimclass'])
-            
+            #scale*=1e-3
             self.command_scale=command_scale
             if self.guidata.read('Show raw voltage'):
                 scale=1.0
                 command_scale=1.0
-                unit='Raw voltage [V]'
+                unit='V'
             unit='Red / Green: '+unit
-            cmd_disp_ena=self.guidata.read('Enable')
+            cmd_disp_ena=hasattr(self, 'ao')#self.guidata.read('Show Command Trace')
+            stim_disp_ena=True#self.guidata.read('Show Stimulus Trace')
             n=1+int(cmd_disp_ena)
             x=n*[t]
             self.elphysscale=scale
             y=[self.filtered[index:]/scale]
-            cc=[[0, 255, 0]]
+            cc=[[255, 0, 0]]
             if cmd_disp_ena:
                 chindex=self.machine_config.ELPHYSCOMMAND_INDEX
                 y.append(sync[index:, chindex]*command_scale)
-                cc.append([255, 0, 0])
+                cc.append([0, 255, 0])
 #            y.append(sync[index:,  self.machine_config.TSTIM_SYNC_INDEX])
 #            cc.append([0, 0, 255])
             self.y=y
@@ -2621,13 +2646,13 @@ class ElphysEngine():
             else:
                 #Visualize stimulus blocks
                 sig=sync[index:, self.machine_config.TSTIM_SYNC_INDEX]
-            tsync=signal.detect_edges(sig,thr)/float(self.sample_rate)
+            tsync=signal.detect_edges(sig,thr)/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
             if sig[0]>thr:
                 tsync=numpy.insert(tsync, 0, 0)
             if tsync.shape[0]%2==1:
-                tsync=numpy.append(tsync,  (sig.shape[0])/float(self.sample_rate))
+                tsync=numpy.append(tsync,  (sig.shape[0])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE))
             tsync+=t[0]
-            self.to_gui.put({'plot_title': mode})
+            self.to_gui.put({'plot_title': ''})
             self.y=y
             self.to_gui.put({'display_roi_curve': [x, y, None, tsync, {'plot_average':False, "colors":cc,  "labels": labels, 'range': self.yrange}]})
 #        elif self.machine_config.AMPLIFIER_TYPE=='differential' :

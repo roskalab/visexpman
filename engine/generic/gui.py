@@ -576,7 +576,7 @@ class Plot(pyqtgraph.GraphicsLayoutWidget):
         self.linear_regions=[]
         for i in range(int(len(boundaries)/2)):
             self.linear_regions.append(pyqtgraph.LinearRegionItem(boundaries[2*i:2*(i+1)], movable=False, brush = color))
-            self.plot.addItem(self.linear_regions[-1])      
+            self.plot.addItem(self.linear_regions[-1])
             
 class TimeAxisItemHHmm(pyqtgraph.AxisItem):
     def __init__(self, *args, **kwargs):
