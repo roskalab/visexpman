@@ -412,6 +412,11 @@ class ParameterTable(ParameterTree):
         self.params = Parameter.create(name='params', type='group', children=params)
         self.setParameters(self.params, showTop=False)
         
+    def update(self, params):
+        self.params = Parameter.create(name='params', type='group', children=params)
+        self.setParameters(self.params, showTop=False)
+        
+        
     def get_parameter_tree(self, return_dict = False,variable_names=False):
         nodes = [[children for children in self.params.children()]]
         import itertools
@@ -780,7 +785,7 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
             for linear_region in self.linear_regions:
                 self.plot.removeItem(linear_region)
         self.linear_regions=[]
-        for i in range(len(boundaries)/2):
+        for i in range(len(boundaries)//2):
             self.linear_regions.append(pyqtgraph.LinearRegionItem(boundaries[2*i:2*(i+1)], movable=False, brush = color))
             self.plot.addItem(self.linear_regions[-1])
         

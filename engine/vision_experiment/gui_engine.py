@@ -100,7 +100,7 @@ class ExperimentHandler(object):
         self.santiago_setup='santiago' in self.machine_config.__class__.__name__.lower()
         self.dataroot=self.guidata.read("Data Root")
         if self.dataroot is None:
-            if self.machine_config.user=='common':
+            if self.machine_config.user=='common' or not self.machine_config.ENABLE_USER_FOLDER:
                 self.dataroot=self.machine_config.EXPERIMENT_DATA_PATH
             else:#Multiple users
                 self.dataroot=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, self.machine_config.user)
@@ -120,9 +120,12 @@ class ExperimentHandler(object):
         if not os.path.exists(filename):
             self.printc('{0} does not exists'.format(filename))
             return
-        if os.path.basename(os.path.dirname(filename))=='common' and self.machine_config.user!='common':#Stimulus edit is not allowed at multiuser setups
-            self.notify('Warning', 'Common stimulus files cannot be opened for editing')
-            return
+        if hasattr(self.machine_config, 'ENABLE_COMMON_STIMULUS_EDIT') and self.machine_config.ENABLE_COMMON_STIMULUS_EDIT:
+            pass
+        else:
+            if os.path.basename(os.path.dirname(filename))=='common' and self.machine_config.user!='common':#Stimulus edit is not allowed at multiuser setups
+                self.notify('Warning', 'Common stimulus files cannot be opened for editing')
+                return
         lines=fileop.read_text_file(filename).split('\n')
         line=[i for i in range(len(lines)) if 'class '+classname in lines[i]][0]+1+0*20#+20: beginning of class is on the middle of the screen
         self.printc('Opening {0}{3}{1} in gedit at line {2}'.format(filename, classname,line,os.sep))
@@ -658,6 +661,17 @@ class ExperimentHandler(object):
             self.to_gui.put({'update_status':'stimulus only'})
         else:
             self.to_gui.put({'update_status':'recording'})
+            
+    def force_waveform_generator_stop(self):
+        if hasattr(self,  'ao'):
+            try:
+                daq.set_waveform_finish(self.ao, 3,wait=True)
+            except:
+                pass
+            self.printc('Waveform generator terminated')
+            del self.ao
+            del self.ao_termination_time
+            daq.set_voltage(self.machine_config.ELPHYS_COMMAND_CHANNEL+':1', 0)
         
     def finish_experiment(self):
         if not self.experiment_running:
@@ -2504,6 +2518,8 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
                 import traceback
                 self.printc(traceback.format_exc())
                 self.dump()
+                if hasattr(self,  'force_waveform_generator_stop'):
+                    self.force_waveform_generator_stop()
                 self.close_open_files()
             time.sleep(self.loop_wait)
         self.close()

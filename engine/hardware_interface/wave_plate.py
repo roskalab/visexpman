@@ -14,9 +14,20 @@ class WavePlate(object):
         self.interpol = interpol
         
         logging.basicConfig(format='%(asctime)s %(levelname)s\t%(message)s', level=logging.INFO, handlers=[logging.FileHandler(self.logfile), logging.StreamHandler()])
+        self.homed=False       
+        
+        devicelist = Thorlabs.list_kinesis_devices()
+        if len([device for device in devicelist if device[0] == self.config['SERVOCONF'][self.param_name]]):
+            #servo motor ID is in the list of connected devices
+            motor = Thorlabs.KinesisMotor(self.config['SERVOCONF'][self.param_name], scale='stage')
+            status = motor.get_status()
+            logging.info(status)
+            self.homed = motor.is_homed()
+
+    def home_motors(self):
+        if self.homed: return
         devicelist = Thorlabs.list_kinesis_devices()
         logging.info(devicelist)
-        
         if len([device for device in devicelist if device[0] == self.config['SERVOCONF'][self.param_name]]):
             #servo motor ID is in the list of connected devices
             motor = Thorlabs.KinesisMotor(self.config['SERVOCONF'][self.param_name], scale='stage')
@@ -46,11 +57,13 @@ class WavePlate(object):
                 self.current_pos_deg = motor.get_position()
                 logging.info('Positioning done: ' + str(self.current_pos_deg) + ' deg, ' + str(self.current_pos_percent) + '%')
             motor.close()
+            self.homed=True
         else:
             logging.error('Motor ' + self.waveplate_id + ' is not connected or its ID need to be changed in the config file!')
             #getattr(self.logger, 'filename') 
             
     def set_position(self, des_pos_percent):
+        self.home_motors()
         logging.info('Changing ' + self.waveplate_id + ' waveplate position...')
         motor = Thorlabs.KinesisMotor(self.config['SERVOCONF'][self.param_name], scale='stage')
             

@@ -577,6 +577,8 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self.printl('Timing signals OK!')
             for msi in msgs:
                 self.printl(msi)
+        if hasattr(self.machine_config, 'post_stim_callback'):
+            self.machine_config.post_stim_callback(self)
         if 0 and 'Record Eyecamera' in self.parameters and self.parameters['Record Eyecamera']:
             fps_values, fpsmean,  fpsstd=self.datafile.sync_frame_rate(self.machine_config.TBEHAV_SYNC_INDEX)
             bins=[min(fps_values), fpsmean-fpsstd/2,  fpsmean+fpsstd/2,  max(fps_values)]
