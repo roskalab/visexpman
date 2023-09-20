@@ -199,7 +199,10 @@ class SyncAnalogIO():
                                                             7,
                                                             DAQmxConstants.DAQmx_Val_Volts,
                                                             None)
-        self.analog_output.CfgDigEdgeStartTrig('/{0}/RTSI1' .format(self.ai_channels.split('/')[0]), DAQmxConstants.DAQmx_Val_Rising)
+        if self.ao_channels2 is None:
+            self.analog_output.CfgDigEdgeStartTrig('/{0}/ai/StartTrigger' .format(self.ao_channels.split('/')[0]), DAQmxConstants.DAQmx_Val_Rising)
+        else:
+            self.analog_output.CfgDigEdgeStartTrig('/{0}/RTSI1' .format(self.ai_channels.split('/')[0]), DAQmxConstants.DAQmx_Val_Rising)
         
         if self.ao_channels2 is not None:
             self.analog_output2 = PyDAQmx.Task()
@@ -273,7 +276,6 @@ class SyncAnalogIO():
                                 waveform,
                                 None,
                                 None)
-                                
         if self.ao_channels2 is not None:                          
             self.analog_output2.WriteAnalogF64(waveform2.shape[1],
                                     False,
