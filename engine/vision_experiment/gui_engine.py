@@ -350,6 +350,8 @@ class ExperimentHandler(object):
         if hasattr(self, 'trigger_filename') and self.trigger_filename!=None:
             experiment_parameters['trigger_filename']=self.trigger_filename
             experiment_parameters['trigger_timestamp']=os.path.getctime(self.trigger_filename)
+        # if not(self.machine_config.PLATFORM=='elphys'):
+        #   experiment_parameters['Sample Rate'] = self.machine_config.SYNC_RECORDER_SAMPLE_RATE
         return experiment_parameters
             
     def start_batch_experiment(self):
@@ -1058,6 +1060,11 @@ class ExperimentHandler(object):
         
     def read_sync_recorder(self):
         self.syncreadout=copy.deepcopy(self.sync_recorder.read_ai())
+        #if not hasattr(self,  "current_experiment_parameters"):
+        #   self.printc("RSR: Could not find any experiment parameters! Using the machine_config parameters.")
+        #    sample_rate = self.machine_config.SYNC_RECORDER_SAMPLE_RATE
+        #else: 
+        #    sample_rate = self.current_experiment_parameters['Sample Rate']
         if hasattr(self.syncreadout,  "dtype"):
             maxnsamples=int(self.machine_config.SYNC_RECORDER_SAMPLE_RATE*self.machine_config.LIVE_SIGNAL_LENGTH)#max 5 minutes
             if self.live_data.shape[0]>maxnsamples:
