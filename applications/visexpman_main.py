@@ -520,8 +520,6 @@ def run_cam(context, timeout=None):
     context['logger'].start()
     from visexpman.engine.vision_experiment import camera
     camera.Camera(context=context)
-    
-    
 
 def stimulation_tester(user, machine_config, experiment_config, **kwargs):
     '''
