@@ -26,7 +26,7 @@ def last_tags(fn,n):
     return os.sep.join(fn.split(os.sep)[-n:])
 
 def path2outfolder(fn,outfolder,extension=''):
-    return os.path.join(outfolder,fileop.replace_extension(os.path.basename(fn), extension))
+    return os.path.join(outfolder,replace_extension(os.path.basename(fn), extension))
 
 def generate_filename(path, insert_timestamp = False, last_tag = ''):
     '''
