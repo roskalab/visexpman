@@ -526,6 +526,7 @@ class Plot(pyqtgraph.GraphicsLayoutWidget):
             # Checking if parameters exist:
             if plotparams[0]['labelTextColor'] != None:
                 labelTextColor=pyqtgraph.mkColor(plotparams[0]['labelTextColor'])
+
             else: 
                 labelTextColor=pyqtgraph.mkColor('r')
             if plotparams[0]['offset'] != None:
@@ -538,6 +539,9 @@ class Plot(pyqtgraph.GraphicsLayoutWidget):
                 brush=pyqtgraph.mkBrush(0)
             self.plot.addLegend(offset=offset, labelTextColor=labelTextColor, brush=brush)
             self.plot.legend.setScale(0.7)
+            if plotparams[0]['labelTextSize'] != None:
+                self.plot.legend.setLabelTextSize(plotparams[0]['labelTextSize'])
+            
         for i in range(ncurves):
             if len(plotparams)>0:
                 self.curves.append(self.plot.plot(**plotparams[i]))
