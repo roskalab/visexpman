@@ -2646,10 +2646,13 @@ class ElphysEngine():
             else:
                 #Visualize stimulus blocks
                 sig=sync[index:, self.machine_config.TSTIM_SYNC_INDEX]
-            tsync=signal.detect_edges(sig,thr)/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
-            if sig[0]>thr:
-                tsync=numpy.insert(tsync, 0, 0)
-            if tsync.shape[0]%2==1:
+            if self.current_experiment_parameters['led_stimulus'] and self.stimulus_config['WAVEFORM'].max()==0:
+                tsync=[]
+            else:
+                tsync=signal.detect_edges(sig,thr)/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
+                if sig[0]>thr:
+                    tsync=numpy.insert(tsync, 0, 0)
+            if hasattr(tsync, "shape") and tsync.shape[0]%2==1:
                 tsync=numpy.append(tsync,  (sig.shape[0])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE))
             tsync+=t[0]
             self.to_gui.put({'plot_title': ''})
