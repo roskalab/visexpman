@@ -46,9 +46,9 @@ class Flowsensor:
         self.ADDRESS = 0
 
         # Set the scale factor used to convert the sensor output to physical units. The
-        # scale factor is indicated on the Flow Meter's datasheet. E.g. its value is
-        # 13.0 for the SLQ-QT105 Flow Meter
-        self.SCALEFACTOR = 13.0
+        # scale factor is indicated on the Flow Meter's datasheet.
+        self.read_scale_factor()
+        self.read_unit_code()
 
         self.switch_heater(1)
         self.set_resolution()
@@ -243,6 +243,53 @@ class Flowsensor:
         # (most significant, least significant) must be sent.
         self.make_and_send_SHDLC_command(0x33, [1, 0])
         self.read_SHDLC_response()
+        
+    def read_unit_code(self):
+        # ------------------------------------------------------------------------------
+        # read unit
+        # Result interpretation: https://media.digikey.com/pdf/Data%20Sheets/Sensirion%20PDFs/LQ_CO_RS485SensorCable_SHDLC_Commands_D2.pdf
+        # ------------------------------------------------------------------------------
+        
+        #initialize variable 'data' as empty list
+        data=[]
+        # loop until data is available and has been read. (execution of a single
+        # measurement may take between 1 and 80 ms for resolutions between 9 and 16 bit,
+        # respectively.)
+        while len(data)<2:
+            # get single measurement
+            self.make_and_send_SHDLC_command(0x52, [])
+            data = self.read_SHDLC_response()
+        
+        # combine the two data bytes into one 16bit data value
+        value_from_sensor = data[0]*256 + data[1]
+        if self.explainmode: print('Unit code:',value_from_sensor)
+        if value_from_sensor == 2116:
+            print('Flow sensor unit is ul/min')
+        else:
+            print('Flow sensor unit is NOT ul/min')
+        
+        
+    def read_scale_factor(self):
+        # ------------------------------------------------------------------------------
+        # read scale factor
+        # ------------------------------------------------------------------------------
+        
+        #initialize variable 'data' as empty list
+        data=[]
+        # loop until data is available and has been read. (execution of a single
+        # measurement may take between 1 and 80 ms for resolutions between 9 and 16 bit,
+        # respectively.)
+        while len(data)<2:
+            # get single measurement
+            self.make_and_send_SHDLC_command(0x53, [])
+            data = self.read_SHDLC_response()
+        
+        # combine the two data bytes into one 16bit data value
+        value_from_sensor = data[0]*256 + data[1]
+        if self.explainmode: print('Scale factor:',value_from_sensor)
+        
+        self.scalefactor = value_from_sensor
+            
 
     def read_measured_data_single(self):
         # ------------------------------------------------------------------------------
@@ -267,7 +314,7 @@ class Flowsensor:
         if value_from_sensor >= 2**15:  # 2**15 = 32768
             value_from_sensor = value_from_sensor-2**16     # 2**16 = 65536
         
-        flow = value_from_sensor / self.SCALEFACTOR
+        flow = value_from_sensor / self.scalefactor
         if self.explainmode:
             print('value with twos complement:',value_from_sensor)        
             print('value with scale factor:', flow)
@@ -307,7 +354,7 @@ class Flowsensor:
 
                 # apply the scale factor to get real flow units. The scale factor is 13.0 for
                 # the SLQ-QT105 flow meter
-                if self.explainmode: print('value with scale factor:', value_from_sensor / self.SCALEFACTOR)
+                if self.explainmode: print('value with scale factor:', value_from_sensor / self.scalefactor)
 
                 # append the datapoint to 'all_data'
                 all_data.append(value_from_sensor / 13.0)
