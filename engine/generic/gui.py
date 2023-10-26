@@ -505,15 +505,15 @@ class Plot(pyqtgraph.GraphicsLayoutWidget):
         self.plot.enableAutoRange()
         self.plot.showGrid(True,True,1.0)
         
-    def update_curve(self, x, y, pen=(0,0,0), plotparams = {}):
+    def update_curve(self, x, y, pen=(0,0,0), plotparams = {}, autoDownsample=False):
         self._clear_curves()
-        self.curve = self.plot.plot(pen=pen, **plotparams)
+        self.curve = self.plot.plot(pen=pen, **plotparams, autoDownsample=autoDownsample)
         self.curve.setData(x, y)
         if min(y) == max(y) or numpy.isnan(min(y)) or numpy.isnan(max(y)):
             return
         self.plot.setYRange(min(y), max(y))
         
-    def update_curves(self, x, y, plot_average=False, colors = [], plotparams=[]):
+    def update_curves(self, x, y, plot_average=False, colors = [], plotparams=[], autoDownsample=False):
         self._clear_curves()
         if len(x)==0: return
         ncurves = len(x)
@@ -544,18 +544,18 @@ class Plot(pyqtgraph.GraphicsLayoutWidget):
             
         for i in range(ncurves):
             if len(plotparams)>0:
-                self.curves.append(self.plot.plot(**plotparams[i]))
+                self.curves.append(self.plot.plot(**plotparams[i], autoDownsample=autoDownsample))
             else:
                 if colors == []:
                     pen = (0,0,0)
                 else:
                     pen=pyqtgraph.mkPen(width=4.5, color=colors[i])
-                self.curves.append(self.plot.plot(pen=pen))
+                self.curves.append(self.plot.plot(pen=pen, autoDownsample=autoDownsample))
             self.curves[-1].setData(x[i], y[i])
             minimums.append(y[i].min())
             maximums.append(y[i].max())
         if plot_average:
-            self.curves.append(self.plot.plot())
+            self.curves.append(self.plot.plot(autoDownsample=autoDownsample))
             self.curves[-1].setPen((200,0,0), width=3)
             x_,y_ = signal.average_of_traces(x,y)
             self.curves[-1].setData(x_, y_)
