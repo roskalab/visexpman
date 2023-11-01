@@ -31,6 +31,7 @@ class ListParameterItem(WidgetParameterItem):
 
     def value(self):
         key = self.widget.currentText()
+        self.forward[key] = key
 
         return self.forward.get(key, None)
 
