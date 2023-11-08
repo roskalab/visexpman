@@ -524,22 +524,22 @@ class Plot(pyqtgraph.GraphicsLayoutWidget):
             if self.plot.legend != None:
                 self.plot.legend.removeItem(self.plot.legend)
             # Checking if parameters exist:
-            if plotparams[0]['labelTextColor'] != None:
+            if 'labelTextColor' in plotparams[0] and plotparams[0]['labelTextColor'] != None:
                 labelTextColor=pyqtgraph.mkColor(plotparams[0]['labelTextColor'])
 
             else: 
                 labelTextColor=pyqtgraph.mkColor('r')
-            if plotparams[0]['offset'] != None:
+            if 'offset' in plotparams[0] and plotparams[0]['offset'] != None:
                 offset=plotparams[0]['offset']
             else: 
                 offset=(30, 30)
-            if plotparams[0]['brush'] != None:
+            if 'brush' in plotparams[0] and plotparams[0]['brush'] != None:
                 brush=pyqtgraph.mkBrush(plotparams[0]['brush'])
             else: 
                 brush=pyqtgraph.mkBrush(0)
             self.plot.addLegend(offset=offset, labelTextColor=labelTextColor, brush=brush)
             self.plot.legend.setScale(0.7)
-            if plotparams[0]['labelTextSize'] != None:
+            if 'labelTextSize' in plotparams[0] and plotparams[0]['labelTextSize'] != None:
                 self.plot.legend.setLabelTextSize(plotparams[0]['labelTextSize'])
             
         for i in range(ncurves):
