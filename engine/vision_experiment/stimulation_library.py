@@ -2291,7 +2291,7 @@ class AdvancedStimulation(StimulationHelpers):
 
     def receptive_field_explore(self,shape_size, on_time, off_time, nrows = None, ncolumns=None, 
                                 display_size = None, flash_repeat = 1, sequence_repeat = 1, 
-                                background_color = None,shape_colors = [1.0], random_order = False):
+                                background_color = None,shape_colors = [1.0], random_order = False, size_ratio = 1):
         '''
         The screen is divided into a meshgrid and rectangles are presented in each position 
                 to map the recpeive field.
@@ -2445,6 +2445,7 @@ class AdvancedStimulation(StimulationHelpers):
 #            if self.machine_config.COORDINATE_SYSTEM=='ulcorner':
 #                positions_and_colors = [[a,d,c,utils.rc((-p['row']+0.5*self.machine_config.SCREEN_SIZE_UM['row'],p['col']+0.5*self.machine_config.SCREEN_SIZE_UM['col']))] for a,d,c, p in positions_and_colors]
         else:
+            shape_size=utils.rc((size_ratio*display_size['row']/float(nrows), size_ratio*display_size['col']/float(ncolumns)))
             positions_and_colors= [[0,shape_size,c,p] for c,p in positions_and_colors]
         self.nrows=nrows
         self.ncolumns=ncolumns
