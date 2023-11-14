@@ -541,7 +541,7 @@ class Plot(pyqtgraph.GraphicsLayoutWidget):
             else:
                 self.plot.addLegend(offset=offset, labelTextColor=labelTextColor, brush=brush)
             self.plot.legend.setScale(0.7)
-            if plotparams[0]['labelTextSize'] != None:
+            if 'labelTextSize' in plotparams[0] and plotparams[0]['labelTextSize'] != None:
                 self.plot.legend.setLabelTextSize(plotparams[0]['labelTextSize'])
             
         for i in range(ncurves):
