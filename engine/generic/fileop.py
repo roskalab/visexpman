@@ -251,6 +251,7 @@ def mkdir_notexists(folder, remove_if_exists=False):
             shutil.rmtree(f)
         if not os.path.exists(f):
             os.makedirs(f)
+    return folder
         
 def recreate_dir(folder):
     '''
