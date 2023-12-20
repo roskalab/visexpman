@@ -192,7 +192,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         
         self.params_config = [
                 {'name': 'Name', 'type': 'str', 'value': ''},
-                {'name': 'Resolution', 'type': 'float', 'value': 1.0, 'limits': (0.5, 8), 'step' : 0.1, 'siPrefix': False, 'suffix': ' pixel/um'},
+                {'name': 'Resolution', 'type': 'float', 'value': 1.0, 'limits': (0.1, 8), 'step' : 0.1, 'siPrefix': False, 'suffix': ' pixel/um'},
                 {'name': 'Scan Width', 'type': 'float', 'value': 100, 'limits': (30, 500), 'siPrefix': True, 'suffix': 'um'},
                 {'name': 'Scan Height', 'type': 'float', 'value': 100, 'limits': (30, 500), 'siPrefix': True, 'suffix': 'um'},
                 {'name': 'Averaging samples', 'type': 'float', 'value': 1, 'limits': (0, 1000),  'decimals': 6},
@@ -201,7 +201,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 {'name': 'Live IR', 'type': 'bool', 'value': False},
                 {'name': 'IR Exposure', 'type': 'float', 'value': 50, 'limits': (1, 1000), 'siPrefix': True, 'suffix': 'ms',  'decimals': 6},
                 {'name': 'IR Gain', 'type': 'float', 'value': 1, 'limits': (0, 1000),  'decimals': 6},
-                {'name': 'IR Zoom', 'type': 'list', 'value': '1x', 'values': ['1x', '2x', '3x','6x']},
+                {'name': 'IR Zoom', 'type': 'list', 'value': '1x', 'values': ['0.5x', '1x', '2x', '3x','6x']},
                 {'name': 'Show Top', 'type': 'bool', 'value': True},
                 {'name': 'Show Side', 'type': 'bool', 'value': True},
                 {'name': 'Show IR', 'type': 'bool', 'value': True},
@@ -334,6 +334,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             if 'params/IR Zoom' in self.settings and self.settings['params/IR Zoom']!=newparams['params/IR Zoom']:
                 if newparams['params/IR Zoom']=='1x':
                     self.camera.set_fov(6,[0,0,2160,2160])
+                elif newparams['params/IR Zoom']=='0.5x':
+                    self.camera.set_fov(6,[0,0,2160,4096])
                 elif newparams['params/IR Zoom']=='2x':
                     self.camera.set_fov(3,[1080-540,1080-540,1080+540,1080+540]) 
                 elif newparams['params/IR Zoom']=='3x':
@@ -526,6 +528,19 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             nf=None
         else:
             nf=nframes+scanner_control.NFRAMES_SKIP_AT_SCANNING_START
+
+        fps=round(self.machine_config.AO_SAMPLE_RATE/self.waveform.shape[1],1)
+        if not self.settings['params/Time lapse/Enable']:
+            self.printc(f'2p frame rate {fps} Hz,  dwell time: {self.dwell_time} ms/V')
+        frq_xscan=(utils.roundint(self.settings['params/Scan Height'] * self.settings['params/Resolution'])+self.settings['params/Advanced/Y Return Time'])*fps
+        t2=time.time()
+        print(2)
+        if not self.settings['params/Time lapse/Enable']:
+            self.printc(f'X scanner frequency: {frq_xscan} Hz')
+        if self.machine_config.MAX_SCANNER_FREQUENCY<frq_xscan:
+            raise RuntimeError(f'X Scanner frequency too high, it cannot exceed {self.machine_config.MAX_SCANNER_FREQUENCY} Hz')
+        self.twop_fps=fps
+        
         self.aio.start_(self.waveform,self.filename,{'boundaries': self.boundaries, 'channels':channels,'metadata': self.format_settings()},\
                         offset=self.settings['params/Advanced/2p Shift'], \
                         nframes=nf, zvalues=zvalues)
@@ -536,14 +551,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             self.statusbar.twop_status.setText('2P')
             self.statusbar.twop_status.setStyleSheet('background:red;')
         t1=time.time()
-        fps=round(self.machine_config.AO_SAMPLE_RATE/self.waveform.shape[1],1)
-        if not self.settings['params/Time lapse/Enable']:
-            self.printc(f'2p frame rate {fps} Hz,  dwell time: {self.dwell_time} ms/V')
-        frq_xscan=(utils.roundint(self.settings['params/Scan Height'] * self.settings['params/Resolution'])+self.settings['params/Advanced/Y Return Time'])*fps
-        t2=time.time()
-        if not self.settings['params/Time lapse/Enable']:
-            self.printc(f'X scanner frequency: {frq_xscan} Hz')
-        self.twop_fps=fps
+        
         self.intensities=[]
         self.frame_counter=0
         t3=time.time()
@@ -772,7 +780,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             if self.image_update_in_progress:
                 return
             self.image_update_in_progress=True
-            if self.frame_counter>20 and self.twop_running and (self.twop_frame.shape[0]!=self.settings['params/Scan Height']*self.settings['params/Resolution'] or self.twop_frame.shape[1]!=self.settings['params/Scan Width']*self.settings['params/Resolution']):
+            if self.frame_counter>20 and self.twop_running and (self.twop_frame.shape[0]!=round(self.settings['params/Scan Height']*self.settings['params/Resolution']) or self.twop_frame.shape[1]!=round(self.settings['params/Scan Width']*self.settings['params/Resolution'])):
                 #self.stop_action()
                 h=self.settings['params/Scan Height']*self.settings['params/Resolution']
                 w=self.settings['params/Scan Width']*self.settings['params/Resolution']
@@ -907,7 +915,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             if (self.settings['params/Show Top'] or self.settings['params/Show Side']) and not self.settings['params/Show IR']:
                 self.imscale=1/self.settings['params/Resolution']#Only 2p image is shown
             elif (not self.settings['params/Show Top'] and not self.settings['params/Show Side']) and self.settings['params/Show IR']:#Only IR is shown
-                self.imscale=1/(self.machine_config.REFERENCE_2P_RESOLUTION*self.settings['params/Infrared-2P overlay/Scale']*int(self.settings['params/IR Zoom'][0]))
+                self.imscale=1/(self.machine_config.REFERENCE_2P_RESOLUTION*self.settings['params/Infrared-2P overlay/Scale']*float(self.settings['params/IR Zoom'][:-1]))
             else:#IR is also shown
                 self.imscale=1/(self.machine_config.REFERENCE_2P_RESOLUTION*self.settings['params/Infrared-2P overlay/Scale'])
             if (self.settings['params/Show Top'] or self.settings['params/Show Side']) and self.settings['params/IR Zoom']!='1x':

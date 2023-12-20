@@ -42,8 +42,8 @@ class ScannerWaveform(object):
                 setattr(self,  pn.lower(), getattr(machine_config, pn))
             else:
                 setattr(self,  pn.lower(), kwargs[pn.lower()])
-        self.scan_voltage_um_factor=kwargs['magnification']  
- 
+        self.scan_voltage_um_factor=kwargs['magnification']
+            
     def generate(self,  height, width, resolution, xflyback, yflyback=2, pulse_width=0, pulse_phase=0):
         '''
         Generates x, y scanner waveforms, timing signal for projector and imaging frame timing pulses.
@@ -258,7 +258,11 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
         #The 1- is a hack here. TODO: check if raw PMT signal is inverted
         imgs=image/self.to16bit
         self.rawimage=imgs
-        image_display=(1-imgs)/1
+        image_inverted=False
+        if image_inverted:
+            image_display=(1-imgs)/1
+        else:
+            image_display=imgs
         #self.printl((self.number_of_ai_samples, image_display.shape, readout.shape, self.data_format))
         return image_display
         
@@ -423,8 +427,8 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                             self.queues['data'].put(frame)
                             self.ct+=1
                             self.queues['rawimage'].put(self.rawimage)
-                            if data_chunk[:2].min()<0:
-                                self.queues['response'].put(f'Negative voltate is detected: {data_chunk[:2].min()} V on PMT output, please adjust offset')
+                            if data_chunk[:2].min()<-0.1:
+                                self.queues['response'].put(f'Negative voltate is detected: {data_chunk[:2].min()} V on PMT output, please adjust offset, {data_chunk.shape}')
                         if self.zvalues!=[] and self.zvalues is not None:
                             previ=self.frame_counter-NFRAMES_SKIP_AT_SCANNING_START-1
                             acti=self.frame_counter-NFRAMES_SKIP_AT_SCANNING_START
