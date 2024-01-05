@@ -51,10 +51,16 @@ def remove_edge_objects(img):
     return img
     
 def edge_detection(mask):
+    print("TODO: obsolete, use imageop.generate_contour")
     import scipy.ndimage
-    maskc=numpy.cast['uint8'](mask)
-    mask=scipy.ndimage.binary_dilation(maskc, iterations=1)-maskc
+    mask=scipy.ndimage.binary_dilation(numpy.cast['uint8'](mask), iterations=1)-numpy.cast['uint8'](mask)
     return mask
+    
+def generate_contour(mask, thickness=1):
+    import scipy.ndimage
+    mask=scipy.ndimage.binary_dilation(numpy.cast['uint8'](mask), iterations=thickness)-numpy.cast['uint8'](mask)
+    return mask
+    
     
     
 class ImageOpTest(unittest.TestCase):
