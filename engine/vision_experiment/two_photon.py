@@ -196,6 +196,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 {'name': 'Scan Width', 'type': 'float', 'value': 100, 'limits': (30, 500), 'siPrefix': True, 'suffix': 'um'},
                 {'name': 'Scan Height', 'type': 'float', 'value': 100, 'limits': (30, 500), 'siPrefix': True, 'suffix': 'um'},
                 {'name': 'Averaging samples', 'type': 'float', 'value': 1, 'limits': (0, 1000),  'decimals': 6},
+                {'name': 'Bidirectional scan', 'type': 'bool', 'value': False},
                 {'name': 'Red Laser Intensity', 'type': 'float', 'value': 0, 'limits': (0, 400), 'siPrefix': True, 'suffix': '%'},
                 {'name': 'Green Laser Intensity', 'type': 'float', 'value': 0, 'limits': (0, 400), 'siPrefix': True, 'suffix': '%'},
                 {'name': 'Live IR', 'type': 'bool', 'value': False},
@@ -385,6 +386,10 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             self.redlaser = wave_plate.WavePlate('RR1', self.redlaser_logfile, servoconfig, self.machine_config.RR1_INTERPOLATION)  
             self.greenlaser_logfile=self.logger.filename.replace('2p', '2p_greenlaser')
             self.greenlaser = wave_plate.WavePlate('GR1', self.greenlaser_logfile, servoconfig, self.machine_config.GR1_INTERPOLATION)
+        if self.machine_config.ENABLE_PMT_TRIPPING_DETECTION:
+            self.pmttripping_logfile=self.logger.filename.replace('2p', '2p_pmttripping')
+            self.pmt = pmt_tripping.PMTTripping(self.pmttripping_logfile, 'TB')
+        
         
         if not self.machine_config.STAGE_IN_SCANNER_PROCESS:
             try:
@@ -398,13 +403,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.camera.terminate()
         
     def start_aio(self):
-        if self.settings['params/Advanced/Objective magnification']=='20x':
-            self.magnification=self.machine_config.SCAN_VOLTAGE_UM_FACTOR_20X
-        elif self.settings['params/Advanced/Objective magnification']=='40x':
-            self.magnification=self.machine_config.SCAN_VOLTAGE_UM_FACTOR_40X
-        else:
-            self.magnification=self.machine_config.SCAN_VOLTAGE_UM_FACTOR
-        self.waveform_generator=scanner_control.ScannerWaveform(machine_config=self.machine_config, magnification=self.magnification)
+        self.waveform_generator=scanner_control.ScannerWaveform(machine_config=self.machine_config)
         if self.machine_config.STAGE_IN_SCANNER_PROCESS:
             if hasattr(self.machine_config, 'AO_CHANNELS2'):
                 print(self.machine_config.STAGE_IN_SCANNER_PROCESS,self.machine_config.AO_CHANNELS2)
@@ -505,11 +504,16 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                                                                     pulse_width,\
                                                                     self.settings['params/Advanced/Projector Control Phase']*1e-6,)
         self.waveform_x_orig=waveform_x.copy()
-        waveform_x, self.boundaries=self.waveform_generator.generate_smooth(int(self.settings['params/Scan Height']), \
+        waveform_x, self.boundaries,waveform_y1=self.waveform_generator.generate_smooth(int(self.settings['params/Scan Height']), \
                                                                                         int(self.settings['params/Scan Width']), \
                                                                                         self.settings['params/Resolution'],\
                                                                                         self.settings['params/Advanced/X Return Time'],\
-                                                                                        self.settings['params/Advanced/Y Return Time'])
+                                                                                        self.settings['params/Advanced/Y Return Time'], \
+                                                                                        self.settings['params/Bidirectional scan'])
+        if self.settings['params/Bidirectional scan']:
+            projector_control=numpy.zeros_like(waveform_x)
+            frame_timing=numpy.zeros_like(waveform_x)
+            waveform_y=waveform_y1
         if self.settings['params/Advanced/Enable scanners']=='X':
             waveform_y*=0
             waveform_y+=self.settings['params/Advanced/Y scanner voltage']

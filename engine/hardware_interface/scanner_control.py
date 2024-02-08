@@ -37,12 +37,11 @@ class ScannerWaveform(object):
             self.fsample=machine_config.AO_SAMPLE_RATE
         else:
             self.fsample=kwargs['fsample']
-        for pn in ['PROJECTOR_CONTROL_VOLTAGE', 'FRAME_TIMING_PULSE_WIDTH']:
+        for pn in ['SCAN_VOLTAGE_UM_FACTOR',  'PROJECTOR_CONTROL_VOLTAGE', 'FRAME_TIMING_PULSE_WIDTH']:
             if hasattr(machine_config, pn):
                 setattr(self,  pn.lower(), getattr(machine_config, pn))
             else:
                 setattr(self,  pn.lower(), kwargs[pn.lower()])
-        self.scan_voltage_um_factor=kwargs['magnification']
             
     def generate(self,  height, width, resolution, xflyback, yflyback=2, pulse_width=0, pulse_phase=0):
         '''
@@ -128,29 +127,56 @@ class ScannerWaveform(object):
         self.yinterp=scipy.interpolate.interp1d([self.y_scanner_position_start, self.y_scanner_position_end], [0, nysamples-1], bounds_error=False, fill_value='extrapolate')
         return waveform_x,  waveform_y, projector_control, frame_timing, boundaries
         
-    def generate_smooth(self, height, width, resolution, xflyback, yflyback):
+    def generate_smooth(self, height, width, resolution, xflyback, yflyback,bidir=False):
         def smooth(x,h):
             return x - ( smooth_core(x,h)/2+     numpy.floor(x+0.5)-0.5 )
 
         def smooth_core(x,h):
+            #import scipy
+            #return numpy.tanh((   scipy.signal.sawtooth(x,0.5)   )*h)
             return numpy.tanh((   (x+0.5)-numpy.floor(x+0.5)-0.5)*h   )
-        nxscans=utils.roundint(height * resolution)+int(yflyback)
-        samples_per_xscan=int(utils.roundint(width * resolution)*((100+xflyback)*1e-2+self.LINE_SCAN_EXTENSION))
-        x=numpy.linspace(0,nxscans,nxscans*samples_per_xscan)
+        
+        if bidir:
+            nxscans=utils.roundint(height * resolution//2)+int(yflyback)
+            samples_per_xscan=int(utils.roundint(width * resolution*2)*((100+xflyback)*1e-2+self.LINE_SCAN_EXTENSION))
+        else:
+            nxscans=utils.roundint(height * resolution)+int(yflyback)
+            samples_per_xscan=int(utils.roundint(width * resolution)*((100+xflyback)*1e-2+self.LINE_SCAN_EXTENSION))
         h=20
-        wf=(smooth(x,h)-0.5)*self.scan_voltage_um_factor*width
-        first_zero_crossing=numpy.nonzero(numpy.diff(numpy.sign(wf)))[0][1]
+        x=numpy.linspace(0,nxscans,nxscans*samples_per_xscan)
+        if bidir:
+            wf=-numpy.cos(2*x*numpy.pi)
+            first_zero_crossing=numpy.nonzero(numpy.diff(numpy.sign(wf)))[0][0]
+        else:
+            wf=(smooth(x,h)-0.5)*self.scan_voltage_um_factor*width
+            first_zero_crossing=numpy.nonzero(numpy.diff(numpy.sign(wf)))[0][1]
+        #import pdb;pdb.set_trace()
+        
         offset=int(first_zero_crossing-0.5*utils.roundint(width * resolution))
         scan_mask=numpy.zeros(samples_per_xscan)
-        scan_mask[offset:offset+utils.roundint(width * resolution)]=1
+        
+        if bidir:
+            scan_mask[offset:offset+utils.roundint(width * resolution)]=1
+            second_zero_crossing=numpy.nonzero(numpy.diff(numpy.sign(wf)))[0][1]
+            offset2=int(second_zero_crossing-0.5*utils.roundint(width * resolution))
+            scan_mask[offset2:offset2+utils.roundint(width * resolution)]=1
+        else:
+            scan_mask[offset:offset+utils.roundint(width * resolution)]=1
         scan_mask=numpy.tile(scan_mask,nxscans )
         scan_mask[-2*samples_per_xscan:]=0
         boundaries = numpy.nonzero(numpy.diff(scan_mask))[0]+1
 #        from pylab import plot, show
 #        plot(wf);plot(scan_mask);show()
-#        pdb.set_trace()
+        line_length = int(utils.roundint(width * resolution)*(1+xflyback*1e-2+self.LINE_SCAN_EXTENSION))  # Number of samples for scanning a line
+        return_y_samps = int(line_length* yflyback)
+        ramp_up_y = numpy.linspace(-0.5*height, 0.5*height, num=wf.shape[0] - return_y_samps)
+        ramp_down_y = numpy.linspace(0.5*height, -0.5*height, num=return_y_samps+1) # Exclude maximum value
+        waveform_y = numpy.concatenate((ramp_up_y, ramp_down_y[1:]))
+        #Scale to V
+        waveform_y*=self.scan_voltage_um_factor
         
-        return wf, boundaries
+        
+        return wf, boundaries, waveform_y
         
 def binning_data(data, factor):
     '''
@@ -896,11 +922,28 @@ class Test(unittest.TestCase):
             self.recorder.terminate()
             time.sleep(3)
             #import pdb;pdb.set_trace()
+
+    def test_waveform_generator_test_bench_bidir(self):
+        fsample=400e3
+        scan_voltage_um_factor=3.0/256
+        frame_timing_pulse_width=1e-6
+        height=10
+        width=10
+        resolution=2
+        xflyback=20
+        yflyback=2
+        pulse_width=100e-6
+        pulse_phase=0
+        sw=ScannerWaveform(fsample=fsample, scan_voltage_um_factor=scan_voltage_um_factor, projector_control_voltage=3.3, frame_timing_pulse_width=frame_timing_pulse_width)
+        
+        from pylab import plot, show
+        plot(sw.generate_smooth(height, width, resolution, xflyback, yflyback,bidir=True)[0])
+        show()
             
             
 if __name__ == "__main__":
     mytest = unittest.TestSuite()
-    mytest.addTest(Test('test_long_running_scan'))
+    mytest.addTest(Test('test_waveform_generator_test_bench_bidir'))
     unittest.TextTestRunner(verbosity=2).run(mytest)
 
     
