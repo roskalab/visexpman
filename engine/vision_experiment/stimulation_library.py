@@ -470,7 +470,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 background_color = None,  orientation = 0.0,  size = utils.rc((0,  0)),  ring_size = None, 
                 ncorners = None, inner_radius = None, L_shape_config = None, X_shape_angle = None,
                 flip = True, save_frame_info = True, enable_centering = True, 
-                part_of_drawing_sequence = False,angle=None):
+                part_of_drawing_sequence = False,angle=None,annulus_color=0):
         '''
         Shows simple, individual shapes like rectangle, circle or ring.
             shape: 'spot', 'rectangle', 'annulus', 'triangle', 'star'
@@ -665,7 +665,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                         glDrawArrays(GL_POLYGON,  frame_i * n_vertices, n_vertices)
             else:
                 n = int(n_vertices/2)
-                glColor3fv(converted_background_color)
+                glColor3fv(colors.convert_color(annulus_color, self.config))
                 glDrawArrays(GL_POLYGON,  n, n)
                 if hasattr(color,  'shape') and len(color.shape) ==2:
                     glColor3fv(colors.convert_color(color[frame_i], self.config))
