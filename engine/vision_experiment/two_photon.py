@@ -236,6 +236,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                     {'name': 'Y Return Time', 'type': 'float', 'value': 2,  'suffix': ' lines'},
                     {'name': 'File Format', 'type': 'list', 'value': '.hdf5',  'values': file_formats},
                     {'name': '2p Shift', 'type': 'int', 'value': 35,  'suffix': ' samples'},
+                    {'name': 'Bidir Shift', 'type': 'int', 'value': 0,  'suffix': ' samples'},
                     {'name': 'Enable scanners', 'type': 'list', 'value': 'both',  'values': ['both', 'X', 'Y', 'None']},
                     {'name': 'X scanner voltage', 'type': 'float', 'value': 0,  'suffix': ' V'},
                     {'name': 'Y scanner voltage', 'type': 'float', 'value': 0,  'suffix': ' V'},
@@ -368,8 +369,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
 
     def _init_hardware(self):
         self.daq_logfile=self.logger.filename.replace('2p', '2p_daq')
-        
-        if self.machine_config.PMT_TRIPPING_DETECTION_ENABLED == True:
+        if self.machine_config.ENABLE_PMT_TRIPPING_DETECTION:
             self.pmttripping_logfile=self.logger.filename.replace('2p', '2p_pmttripping')
             self.pmt = pmt_tripping.PMTTripping(self.pmttripping_logfile, self.machine_config.PMT_TRIPPING_EMAIL)
         
@@ -388,7 +388,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             self.greenlaser = wave_plate.WavePlate('GR1', self.greenlaser_logfile, servoconfig, self.machine_config.GR1_INTERPOLATION)
         if self.machine_config.ENABLE_PMT_TRIPPING_DETECTION:
             self.pmttripping_logfile=self.logger.filename.replace('2p', '2p_pmttripping')
-            self.pmt = pmt_tripping.PMTTripping(self.pmttripping_logfile, 'TB')
+            self.pmt = pmt_tripping.PMTTripping(self.pmttripping_logfile, self.machine_config.PMT_TRIPPING_EMAIL)
         
         
         if not self.machine_config.STAGE_IN_SCANNER_PROCESS:
@@ -537,6 +537,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         if not self.settings['params/Time lapse/Enable']:
             self.printc(f'2p frame rate {fps} Hz,  dwell time: {self.dwell_time} ms/V')
         frq_xscan=(utils.roundint(self.settings['params/Scan Height'] * self.settings['params/Resolution'])+self.settings['params/Advanced/Y Return Time'])*fps
+        if self.settings['params/Bidirectional scan']:
+            frq_xscan/=2
         t2=time.time()
         print(2)
         if not self.settings['params/Time lapse/Enable']:
@@ -547,7 +549,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         
         self.aio.start_(self.waveform,self.filename,{'boundaries': self.boundaries, 'channels':channels,'metadata': self.format_settings()},\
                         offset=self.settings['params/Advanced/2p Shift'], \
-                        nframes=nf, zvalues=zvalues)
+                        nframes=nf, zvalues=zvalues,bidir=self.settings['params/Bidirectional scan'],bidir_shift=self.settings['params/Advanced/Bidir Shift'])
         self.twop_running=True
 
         

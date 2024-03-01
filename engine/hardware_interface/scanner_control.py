@@ -126,6 +126,31 @@ class ScannerWaveform(object):
         self.xinterp=scipy.interpolate.interp1d([self.x_scanner_position_start, self.x_scanner_position_end], [0, nxsamples-1], bounds_error=False, fill_value='extrapolate')
         self.yinterp=scipy.interpolate.interp1d([self.y_scanner_position_start, self.y_scanner_position_end], [0, nysamples-1], bounds_error=False, fill_value='extrapolate')
         return waveform_x,  waveform_y, projector_control, frame_timing, boundaries
+
+
+    def generate_smooth1(self, height, width, resolution, xflyback, yflyback,bidir=False):
+        def smooth(x,h):
+            return x - ( smooth_core(x,h)/2+     numpy.floor(x+0.5)-0.5 )
+
+        def smooth_core(x,h):
+            return numpy.tanh((   (x+0.5)-numpy.floor(x+0.5)-0.5)*h   )
+        nxscans=utils.roundint(height * resolution)+int(yflyback)
+        samples_per_xscan=int(utils.roundint(width * resolution)*((100+xflyback)*1e-2+self.LINE_SCAN_EXTENSION))
+        x=numpy.linspace(0,nxscans,nxscans*samples_per_xscan)
+        h=20
+        wf=(smooth(x,h)-0.5)*self.scan_voltage_um_factor*width
+        first_zero_crossing=numpy.nonzero(numpy.diff(numpy.sign(wf)))[0][1]
+        offset=int(first_zero_crossing-0.5*utils.roundint(width * resolution))
+        scan_mask=numpy.zeros(samples_per_xscan)
+        scan_mask[offset:offset+utils.roundint(width * resolution)]=1
+        scan_mask=numpy.tile(scan_mask,nxscans )
+        scan_mask[-2*samples_per_xscan:]=0
+        boundaries = numpy.nonzero(numpy.diff(scan_mask))[0]+1
+#        from pylab import plot, show
+#        plot(wf);plot(scan_mask);show()
+#        pdb.set_trace()
+        
+        return wf, boundaries,wf
         
     def generate_smooth(self, height, width, resolution, xflyback, yflyback,bidir=False):
         def smooth(x,h):
@@ -145,7 +170,7 @@ class ScannerWaveform(object):
         h=20
         x=numpy.linspace(0,nxscans,nxscans*samples_per_xscan)
         if bidir:
-            wf=-numpy.cos(2*x*numpy.pi)
+            wf=-numpy.cos(2*x*numpy.pi)*self.scan_voltage_um_factor*width*0.5
             first_zero_crossing=numpy.nonzero(numpy.diff(numpy.sign(wf)))[0][0]
         else:
             wf=(smooth(x,h)-0.5)*self.scan_voltage_um_factor*width
@@ -163,6 +188,7 @@ class ScannerWaveform(object):
         else:
             scan_mask[offset:offset+utils.roundint(width * resolution)]=1
         scan_mask=numpy.tile(scan_mask,nxscans )
+            
         scan_mask[-2*samples_per_xscan:]=0
         boundaries = numpy.nonzero(numpy.diff(scan_mask))[0]+1
 #        from pylab import plot, show
@@ -174,8 +200,10 @@ class ScannerWaveform(object):
         waveform_y = numpy.concatenate((ramp_up_y, ramp_down_y[1:]))
         #Scale to V
         waveform_y*=self.scan_voltage_um_factor
-        
-        
+        from pylab import plot,show
+       # plot(scan_mask);plot(wf);show()
+        #import pdb;pdb.set_trace()
+        print(f'nxscans={nxscans}, {wf.shape}, {samples_per_xscan}')
         return wf, boundaries, waveform_y
         
 def binning_data(data, factor):
@@ -184,11 +212,16 @@ def binning_data(data, factor):
     '''
     return numpy.reshape(data, (int(data.shape[0]/factor), factor, data.shape[1])).mean(1)
 
-def rawpmt2image(rawdata, boundaries, binning_factor=1,  offset = 0):
+def rawpmt2image(rawdata, boundaries, binning_factor=1,  offset = 0,bidir=False,bidir_offset=0):
     binned_pmt_data = binning_data(rawdata, binning_factor)
     if offset != 0:
         binned_pmt_data = numpy.roll(binned_pmt_data, -offset)
-    return numpy.array((numpy.split(binned_pmt_data, boundaries)[1::2]))
+    img= numpy.array((numpy.split(binned_pmt_data, boundaries)[1::2]))
+    numpy.save(r'c:\data\img.npy', img)
+    if bidir:
+        img[::2]=img[::2][:,::-1]
+        img[::2]=numpy.roll(img[::2],bidir_offset)
+    return img
     
 class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
     """
@@ -215,11 +248,11 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
     def start(self):
         instrument.InstrumentProcess.start(self)
         
-    def start_(self, waveform, filename, data_format,offset=0, nframes=None, zvalues=[]):
+    def start_(self, waveform, filename, data_format,offset=0, nframes=None, zvalues=[],bidir=False,bidir_shift=0):
         """
         data_format: dictionary containing channels to be saved and boundaries
         """
-        self.queues['command'].put(('start', waveform, filename, data_format, offset, nframes, zvalues))
+        self.queues['command'].put(('start', waveform, filename, data_format, offset, nframes, zvalues, bidir,bidir_shift))
         
     def stop(self):
         self.queues['command'].put(('stop',))
@@ -271,7 +304,7 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
         for chunk_ in split_data:
             if 'channels' in self.data_format:
                 scaled=chunk_[self.data_format['channels']]
-                image=rawpmt2image(chunk_.T, self.data_format['boundaries']+self.offset, binning_factor=self.binning_factor,  offset = 0)
+                image=rawpmt2image(chunk_.T, self.data_format['boundaries']+self.offset, binning_factor=self.binning_factor,  offset = 0,bidir=self.bidir_scan,bidir_offset=self.bidir_offset)
             else:
                 image=chunk_[None,:]
             if hasattr(self,'data_handle'):
@@ -329,6 +362,8 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                         self.offset=cmd[4]
                         self.nframes=cmd[5]
                         self.zvalues=cmd[6]
+                        self.bidir_scan=cmd[7]
+                        self.bidir_offset=cmd[8]
                         if self.zvalues is not None and len(self.zvalues)>0:
                             self.set_back_z()#Ensure that z position is set to initial position
                         if self.nframes is None and self.zvalues is not None:
@@ -349,6 +384,7 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                                 rawdatatype=tables.Float32Atom((4, int(waveform.shape[1]*self.binning_factor)))
                             self.data_handle=self.fh.create_earray(self.fh.root, 'twopdata', datatype, (0,),filters=datacompressor)
                             self.raw_data_handle=self.fh.create_earray(self.fh.root, 'raw', rawdatatype, (0,),filters=datacompressor)
+                            setattr(self.fh.root.twopdata.attrs,'boundaries',self.data_format['boundaries'])
                             if 'metadata' in self.data_format:
                                 for k, v in self.data_format['metadata'].items():
                                     setattr(self.fh.root.twopdata.attrs,k,v)
@@ -937,7 +973,7 @@ class Test(unittest.TestCase):
         sw=ScannerWaveform(fsample=fsample, scan_voltage_um_factor=scan_voltage_um_factor, projector_control_voltage=3.3, frame_timing_pulse_width=frame_timing_pulse_width)
         
         from pylab import plot, show
-        plot(sw.generate_smooth(height, width, resolution, xflyback, yflyback,bidir=True)[0])
+        plot(sw.generate_smooth(height, width, resolution, xflyback, yflyback,bidir= True)[0])
         show()
             
             
